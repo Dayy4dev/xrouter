@@ -766,7 +766,7 @@ export default function ModelSelectModal({
       }}
       title={title}
       size="xl"
-      className="max-w-3xl! p-0 overflow-hidden"
+      className="max-w-4xl! p-0 overflow-hidden"
       footer={null}
     >
       <div className="flex flex-col h-full max-h-[calc(min(100dvh,100svh)-2rem)] min-h-0">
@@ -874,7 +874,7 @@ export default function ModelSelectModal({
         </div>
 
         {/* Models list area in structured high-density grid */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar bg-bg">
+        <div className="flex-1 overflow-y-auto p-2.5 sm:p-4 space-y-4 sm:space-y-5 custom-scrollbar bg-bg">
           {/* Combos section */}
           {hasCombos && (activeTab === "all" || activeTab === "combos") && (
             <div className="space-y-2">
@@ -882,7 +882,7 @@ export default function ModelSelectModal({
                 <span className="material-symbols-outlined text-primary text-[15px]">layers</span>
                 <span>Model Combos ({filteredCombos.length})</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5">
                 {filteredCombos.map((combo) => {
                   const isSelected = selectedModel === combo.name;
                   const isAdded = addedModelValues.includes(combo.name);
@@ -893,42 +893,42 @@ export default function ModelSelectModal({
                       type="button"
                       onClick={() => handleSelect({ id: combo.name, name: combo.name, value: combo.name })}
                       className={cn(
-                        "group relative flex flex-col justify-between p-3 rounded-[6px] border text-left transition-all duration-150 cursor-pointer overflow-hidden",
-                        isSelected
-                          ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_rgba(229,106,74,0.3)]"
-                          : isAdded
-                            ? "bg-surface-2 border-brand-500/60 text-text-main"
-                            : "bg-surface border-border hover:border-brand-500/40 hover:bg-surface-2 text-text-main"
-                      )}
-                    >
-                      {(isSelected || isAdded) && (
-                        <span className="absolute inset-y-0 left-0 w-[3px] bg-brand-500" aria-hidden="true" />
-                      )}
-                      <div className="flex items-start justify-between gap-2 min-w-0">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span
-                            className={cn(
-                              "size-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors",
-                              isSelected || isAdded
-                                ? "border-brand-500 bg-brand-500 text-white"
-                                : "border-border bg-surface-2 text-transparent group-hover:border-border-hover"
-                            )}
-                          >
-                            <span className="material-symbols-outlined text-[12px] leading-none font-bold">check</span>
-                          </span>
-                          <span className="text-xs font-semibold text-text-main group-hover:text-primary transition-colors truncate">
-                            {combo.name}
-                          </span>
-                        </div>
-                        <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-surface-3 border border-border-subtle text-text-muted shrink-0">
-                          combo
-                        </span>
-                      </div>
+                        "group relative flex flex-col justify-between p-2 rounded-[6px] border text-left transition-all duration-150 cursor-pointer overflow-hidden",
+                                                isSelected
+                                                  ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_rgba(229,106,74,0.3)]"
+                                                  : isAdded
+                                                    ? "bg-surface-2 border-brand-500/60 text-text-main"
+                                                    : "bg-surface border-border hover:border-brand-500/40 hover:bg-surface-2 text-text-main"
+                                              )}
+                                            >
+                                              {(isSelected || isAdded) && (
+                                                <span className="absolute inset-y-0 left-0 w-[3px] bg-brand-500" aria-hidden="true" />
+                                              )}
+                                              <div className="flex items-start justify-between gap-1.5 min-w-0">
+                                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                                  <span
+                                                    className={cn(
+                                                      "size-3.5 rounded-[3px] border flex items-center justify-center shrink-0 transition-colors",
+                                                      isSelected || isAdded
+                                                        ? "border-brand-500 bg-brand-500 text-white"
+                                                        : "border-border bg-surface-2 text-transparent group-hover:border-border-hover"
+                                                    )}
+                                                  >
+                                                    <span className="material-symbols-outlined text-[11px] leading-none font-bold">check</span>
+                                                  </span>
+                                                  <span className="text-xs font-semibold text-text-main group-hover:text-primary transition-colors truncate">
+                                                    {combo.name}
+                                                  </span>
+                                                </div>
+                                                <span className="text-[9px] font-mono uppercase px-1 py-px rounded bg-surface-3 border border-border-subtle text-text-muted shrink-0">
+                                                  combo
+                                                </span>
+                                              </div>
 
-                      <div className="mt-2 pt-2 border-t border-border-subtle flex items-center justify-between gap-2 min-w-0">
-                        <span className="text-[10.5px] font-mono text-text-muted truncate">
-                          {combo.models?.length || 0} models pool
-                        </span>
+                                              <div className="mt-1.5 pt-1.5 border-t border-border-subtle flex items-center justify-between gap-1.5 min-w-0">
+                                                <span className="text-[10.5px] font-mono text-text-muted truncate">
+                                                  {combo.models?.length || 0} models pool
+                                                </span>
                         <div className="flex items-center gap-1 shrink-0">
                           <ContextTag caps={caps} />
                           <CapacityBadges caps={caps} />
@@ -948,7 +948,7 @@ export default function ModelSelectModal({
                 <span className="material-symbols-outlined text-primary text-[15px]">auto_awesome</span>
                 <span>Custom Models ({filteredStudioModels.length})</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5">
                 {filteredStudioModels.map((studio) => {
                   const isSelected = selectedModel === studio.callName;
                   const isAdded = addedModelValues.includes(studio.callName);
@@ -966,42 +966,42 @@ export default function ModelSelectModal({
                       }
                       title={`Calls ${studio.targetLabel || studio.targetModel}`}
                       className={cn(
-                        "group relative flex flex-col justify-between p-3 rounded-[6px] border text-left transition-all duration-150 cursor-pointer overflow-hidden",
-                        isSelected
-                          ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_rgba(229,106,74,0.3)]"
-                          : isAdded
-                            ? "bg-surface-2 border-brand-500/60 text-text-main"
-                            : "bg-surface border-border hover:border-brand-500/40 hover:bg-surface-2 text-text-main"
-                      )}
-                    >
-                      {(isSelected || isAdded) && (
-                        <span className="absolute inset-y-0 left-0 w-[3px] bg-brand-500" aria-hidden="true" />
-                      )}
-                      <div className="flex items-start justify-between gap-2 min-w-0">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span
-                            className={cn(
-                              "size-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors",
-                              isSelected || isAdded
-                                ? "border-brand-500 bg-brand-500 text-white"
-                                : "border-border bg-surface-2 text-transparent group-hover:border-border-hover"
-                            )}
-                          >
-                            <span className="material-symbols-outlined text-[12px] leading-none font-bold">check</span>
-                          </span>
-                          <span className="text-xs font-semibold text-text-main group-hover:text-primary transition-colors truncate">
-                            {studio.displayName || studio.callName}
-                          </span>
-                        </div>
-                        <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded bg-surface-3 border border-border-subtle text-text-muted shrink-0">
-                          custom
-                        </span>
-                      </div>
+                        "group relative flex flex-col justify-between p-2 rounded-[6px] border text-left transition-all duration-150 cursor-pointer overflow-hidden",
+                                                isSelected
+                                                  ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_rgba(229,106,74,0.3)]"
+                                                  : isAdded
+                                                    ? "bg-surface-2 border-brand-500/60 text-text-main"
+                                                    : "bg-surface border-border hover:border-brand-500/40 hover:bg-surface-2 text-text-main"
+                                              )}
+                                            >
+                                              {(isSelected || isAdded) && (
+                                                <span className="absolute inset-y-0 left-0 w-[3px] bg-brand-500" aria-hidden="true" />
+                                              )}
+                                              <div className="flex items-start justify-between gap-1.5 min-w-0">
+                                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                                  <span
+                                                    className={cn(
+                                                      "size-3.5 rounded-[3px] border flex items-center justify-center shrink-0 transition-colors",
+                                                      isSelected || isAdded
+                                                        ? "border-brand-500 bg-brand-500 text-white"
+                                                        : "border-border bg-surface-2 text-transparent group-hover:border-border-hover"
+                                                    )}
+                                                  >
+                                                    <span className="material-symbols-outlined text-[11px] leading-none font-bold">check</span>
+                                                  </span>
+                                                  <span className="text-xs font-semibold text-text-main group-hover:text-primary transition-colors truncate">
+                                                    {studio.displayName || studio.callName}
+                                                  </span>
+                                                </div>
+                                                <span className="text-[9px] font-mono uppercase px-1 py-px rounded bg-surface-3 border border-border-subtle text-text-muted shrink-0">
+                                                  custom
+                                                </span>
+                                              </div>
 
-                      <div className="mt-2 pt-2 border-t border-border-subtle flex items-center justify-between gap-2 min-w-0">
-                        <span className="text-[10.5px] font-mono text-text-muted truncate">
-                          &rarr; {studio.targetLabel || studio.targetModel}
-                        </span>
+                                              <div className="mt-1.5 pt-1.5 border-t border-border-subtle flex items-center justify-between gap-1.5 min-w-0">
+                                                <span className="text-[10.5px] font-mono text-text-muted truncate">
+                                                  &rarr; {studio.targetLabel || studio.targetModel}
+                                                </span>
                         <div className="flex items-center gap-1 shrink-0">
                           <ContextTag caps={caps} />
                           <CapacityBadges caps={caps} />
@@ -1031,7 +1031,7 @@ export default function ModelSelectModal({
                   <span className="text-[10px] font-mono text-text-muted">({group.models.length})</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5">
                   {group.models.map((model) => {
                     const isSelected = selectedModel === model.value;
                     const isAdded = addedModelValues.includes(model.value);
@@ -1044,59 +1044,59 @@ export default function ModelSelectModal({
                         onClick={() => handleSelect(model)}
                         title={isPlaceholder ? "Select to pre-fill, then edit model ID in the input" : model.value}
                         className={cn(
-                          "group relative flex flex-col justify-between p-3 rounded-[6px] border text-left transition-all duration-150 cursor-pointer overflow-hidden",
-                          isPlaceholder
-                            ? "border-dashed border-border text-text-muted hover:border-primary/50 hover:text-primary bg-surface italic"
-                            : isSelected
-                              ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_rgba(229,106,74,0.3)]"
-                              : isAdded
-                                ? "bg-surface-2 border-brand-500/60 text-text-main"
-                                : "bg-surface border-border hover:border-brand-500/40 hover:bg-surface-2 text-text-main"
-                        )}
-                      >
-                        {(isSelected || isAdded) && !isPlaceholder && (
-                          <span className="absolute inset-y-0 left-0 w-[3px] bg-brand-500" aria-hidden="true" />
-                        )}
+                                                  "group relative flex flex-col justify-between p-2 rounded-[6px] border text-left transition-all duration-150 cursor-pointer overflow-hidden",
+                                                  isPlaceholder
+                                                    ? "border-dashed border-border text-text-muted hover:border-primary/50 hover:text-primary bg-surface italic"
+                                                    : isSelected
+                                                      ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_rgba(229,106,74,0.3)]"
+                                                      : isAdded
+                                                        ? "bg-surface-2 border-brand-500/60 text-text-main"
+                                                        : "bg-surface border-border hover:border-brand-500/40 hover:bg-surface-2 text-text-main"
+                                                )}
+                                              >
+                                                {(isSelected || isAdded) && !isPlaceholder && (
+                                                  <span className="absolute inset-y-0 left-0 w-[3px] bg-brand-500" aria-hidden="true" />
+                                                )}
 
-                        <div className="flex items-start justify-between gap-2 min-w-0">
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            {!isPlaceholder && (
-                              <span
-                                className={cn(
-                                  "size-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-colors",
-                                  isSelected || isAdded
-                                    ? "border-brand-500 bg-brand-500 text-white"
-                                    : "border-border bg-surface-2 text-transparent group-hover:border-border-hover"
-                                )}
-                              >
-                                <span className="material-symbols-outlined text-[12px] leading-none font-bold">
-                                  check
-                                </span>
-                              </span>
-                            )}
-                            {isPlaceholder && (
-                              <span className="material-symbols-outlined text-[14px] text-text-muted shrink-0">
-                                edit
-                              </span>
-                            )}
-                            <span className="text-xs font-semibold text-text-main group-hover:text-primary transition-colors truncate">
-                              {model.name}
-                            </span>
-                          </div>
+                                                <div className="flex items-start justify-between gap-1.5 min-w-0">
+                                                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                                    {!isPlaceholder && (
+                                                      <span
+                                                        className={cn(
+                                                          "size-3.5 rounded-[3px] border flex items-center justify-center shrink-0 transition-colors",
+                                                          isSelected || isAdded
+                                                            ? "border-brand-500 bg-brand-500 text-white"
+                                                            : "border-border bg-surface-2 text-transparent group-hover:border-border-hover"
+                                                        )}
+                                                      >
+                                                        <span className="material-symbols-outlined text-[11px] leading-none font-bold">
+                                                          check
+                                                        </span>
+                                                      </span>
+                                                    )}
+                                                    {isPlaceholder && (
+                                                      <span className="material-symbols-outlined text-[13px] text-text-muted shrink-0">
+                                                        edit
+                                                      </span>
+                                                    )}
+                                                    <span className="text-xs font-semibold text-text-main group-hover:text-primary transition-colors truncate">
+                                                      {model.name}
+                                                    </span>
+                                                  </div>
 
-                          <div className="flex items-center gap-1 shrink-0">
-                            {model.isCustom && (
-                              <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-surface-3 border border-border-subtle text-text-muted">
-                                custom
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                                                  <div className="flex items-center gap-1 shrink-0">
+                                                    {model.isCustom && (
+                                                      <span className="text-[9px] font-mono px-1 py-0.5 rounded bg-surface-3 border border-border-subtle text-text-muted">
+                                                        custom
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </div>
 
-                        <div className="mt-2 pt-2 border-t border-border-subtle flex items-center justify-between gap-2 min-w-0">
-                          <span className="text-[10.5px] font-mono text-text-muted truncate min-w-0" title={model.value}>
-                            {model.value}
-                          </span>
+                                                <div className="mt-1.5 pt-1.5 border-t border-border-subtle flex items-center justify-between gap-1.5 min-w-0">
+                                                  <span className="text-[10.5px] font-mono text-text-muted truncate min-w-0" title={model.value}>
+                                                    {model.value}
+                                                  </span>
                           <div className="flex items-center gap-1 shrink-0">
                             <ContextTag caps={caps} />
                             <CapacityBadges caps={caps} />
