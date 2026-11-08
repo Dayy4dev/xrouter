@@ -41,20 +41,18 @@ export async function POST(request) {
   try {
     const body = await request.json();
     if (Array.isArray(body?.models)) {
-      const { providerAlias, models } = body;
-      if (!providerAlias || !Array.isArray(models)) {
-        return NextResponse.json({ error: "providerAlias and models array required" }, { status: 400 });
-      }
+      const defaultProviderAlias = body.providerAlias;
       let addedCount = 0;
-      for (const m of models) {
+      for (const m of body.models) {
+        const targetAlias = (typeof m === "object" && m?.providerAlias) || defaultProviderAlias;
         const id = typeof m === "string" ? m : m?.id;
-        if (!id) continue;
+        if (!targetAlias || !id) continue;
         const type = (typeof m === "object" && m?.type) || "llm";
         const name = (typeof m === "object" && m?.name) || undefined;
         const cleanCaps = sanitizeCaps(typeof m === "object" ? m?.caps : undefined);
         const cleanTransport = sanitizeTransport(typeof m === "object" ? m?.transport : undefined, type);
         const added = await addCustomModel({
-          providerAlias,
+          providerAlias: targetAlias,
           id,
           type,
           name,

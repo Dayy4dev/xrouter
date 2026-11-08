@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import ChangelogModal from "./ChangelogModal";
 import { useSessionStore } from "@/store/sessionStore";
 import { useTaskStore } from "@/store/taskStore";
@@ -20,6 +21,7 @@ const SEVERITY_STYLE = {
  * install, not the caller's own key.
  */
 export default function NotificationBell() {
+  const router = useRouter();
   const role = useSessionStore((state) => state.role);
   const isAdmin = role !== "apikey";
   const [open, setOpen] = useState(false);
@@ -139,7 +141,53 @@ export default function NotificationBell() {
   // a derived .map(): a derived array is a new reference every render, which
   // re-subscribes the component on every paint and loops the page to death.)
   const tasks = useTaskStore((state) => state.tasks);
-  const taskIds = useMemo(() => tasks.map((t) => t.id), [tasks]);
+  const liveTasks = useMemo(() => {
+    const list = tasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      message: t.message,
+      progress: t.progress,
+      state: t.state || "running",
+      href: t.href || null,
+      source: "store",
+    }));
+    const seen = new Set(tasks.map((t) => t.id));
+    for (const job of jobs) {
+      if (!job?.taskId || seen.has(job.taskId)) continue;
+      seen.add(job.taskId);
+      list.push({
+        id: job.taskId,
+        title: job.title || job.kind,
+        message: job.message || "",
+        progress: Number(job.progress) || 0,
+        href: job.href || "/dashboard/proxy-pools",
+        state: job.status === "done" ? "done" : "running",
+        source: "job",
+      });
+    }
+    return list;
+  }, [tasks, jobs]);
+
+  const runningCount = liveTasks.filter((t) => t.state !== "done").length;
+
+  const handleTaskPick = (task) => {
+    setOpen(false);
+    if (!task?.href || typeof window === "undefined") return;
+    revealBackgroundedTasks();
+    try {
+      if (window.location.pathname === task.href) {
+        window.dispatchEvent(new CustomEvent("9r:reveal-tasks"));
+        return;
+      }
+      if (router && typeof router.push === "function") {
+        router.push(task.href);
+      } else {
+        window.location.assign(task.href);
+      }
+    } catch {
+      window.location.assign(task.href);
+    }
+  };
 
   const markAllRead = async () => {
     setUnread(0);
@@ -178,10 +226,16 @@ export default function NotificationBell() {
         }
         className="relative flex items-center justify-center size-8 rounded-[10px] text-text-muted hover:text-text-main hover:bg-surface-2 transition-colors"
         title="Notifications"
-        aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
+        aria-label={`Notifications${unread ? `, ${unread} unread` : ""}${runningCount ? `, ${runningCount} running` : ""}`}
         aria-expanded={open}
       >
         <span className="material-symbols-outlined text-[20px]">notifications</span>
+        {runningCount > 0 && (
+          <span
+            aria-hidden="true"
+            className="absolute -top-1 -right-1 size-2 rounded-full bg-emerald-500 animate-pulse"
+          />
+        )}
         {unread > 0 && (
           <span
             className={`absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full text-[9px] font-bold leading-[15px] text-white ${
@@ -210,58 +264,64 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {jobs.length > 0 && (
+          {liveTasks.length > 0 && (
             <>
               <div className="px-3.5 pt-3 pb-1">
                 <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Running in background
+                  {liveTasks.some((t) => t.state !== "done") ? "Running in background" : "Completed"}
                 </span>
               </div>
-              {jobs.map((job) => {
-                const pct = Number(job.progress) || 0;
-                const alreadyShown = taskIds.includes(job.taskId);
+              {liveTasks.map((task) => {
+                const pct = Number.isFinite(task.progress)
+                  ? Math.min(100, Math.max(0, Math.round(task.progress <= 1 && task.progress > 0 ? task.progress * 100 : task.progress)))
+                  : 0;
+                const isDone = task.state === "done";
                 return (
-                  <button
-                    key={job.id}
-                    type="button"
-                    onClick={() => {
-                      setOpen(false);
-                      // Expand the collapsed corner card instead of rendering a
-                      // second copy of it. Navigation lands where the operator
-                      // started the run, so the task store reconnects and the
-                      // banner reopens on the run itself.
-                      revealBackgroundedTasks();
-                      if (!alreadyShown && typeof window !== "undefined") {
-                        window.location.assign(job.href || "/dashboard/proxy-pools");
-                      } else if (typeof window !== "undefined") {
-                        window.dispatchEvent(new CustomEvent("9r:reveal-tasks"));
-                      }
-                    }}
-                    className="block w-full text-left border-b border-border-subtle/60 last:border-0"
+                  <div
+                    key={task.id}
+                    className="flex items-start border-b border-border-subtle/60 last:border-0 hover:bg-surface-2 transition-colors"
                   >
-                    <span className="flex items-start gap-2 px-3.5 py-2.5 transition-colors hover:bg-surface-2">
-                      <span className="material-symbols-outlined text-[16px] mt-0.5 shrink-0 text-primary">
-                        progress_activity
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-xs font-medium text-text-main">
-                          {job.title}
+                    <button
+                      type="button"
+                      onClick={() => handleTaskPick(task)}
+                      className="min-w-0 flex-1 text-left px-3.5 py-2.5"
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className={`material-symbols-outlined text-[16px] mt-0.5 shrink-0 ${isDone ? "text-emerald-500" : "text-primary"}`}>
+                          {isDone ? "check_circle" : "progress_activity"}
                         </span>
-                        <span className="block text-[11px] text-text-muted mt-0.5 break-words">
-                          {job.message || `${pct}%`}
+                        <div className="min-w-0 flex-1">
+                          <span className="block text-xs font-medium text-text-main truncate">
+                            {task.title}
+                          </span>
+                          <span className="block text-[11px] text-text-muted mt-0.5 break-words">
+                            {task.message || (isDone ? "Completed" : `${pct}%`)}
+                          </span>
+                          <span className="mt-1.5 block h-1 overflow-hidden rounded bg-border">
+                            <span
+                              className={`block h-full transition-[width] duration-300 ${isDone ? "bg-emerald-500" : "bg-primary"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </span>
+                        </div>
+                        <span className={`shrink-0 font-mono text-[11px] font-semibold tabular-nums ${isDone ? "text-emerald-500" : "text-primary"}`}>
+                          {pct}%
                         </span>
-                        <span className="mt-1.5 block h-1 overflow-hidden rounded bg-border">
-                          <span
-                            className="block h-full bg-primary transition-[width] duration-300"
-                            style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
-                          />
-                        </span>
-                      </span>
-                      <span className="shrink-0 font-mono text-[11px] font-semibold tabular-nums text-primary">
-                        {pct}%
-                      </span>
-                    </span>
-                  </button>
+                      </div>
+                    </button>
+                    {isDone && (
+                      <div className="flex shrink-0 items-center pr-2 py-2.5">
+                        <button
+                          type="button"
+                          onClick={() => useTaskStore.getState().dismiss(task.id)}
+                          className="flex size-6 items-center justify-center rounded text-text-muted hover:text-text-main hover:bg-surface-3 transition-colors"
+                          title="Dismiss"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">close</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </>
@@ -272,7 +332,7 @@ export default function NotificationBell() {
               // job listed just above contradicts it.
               <div className="px-4 py-5 text-center">
                 <p className="text-xs text-text-muted">
-                  {jobs.length > 0 ? "No notifications." : "No new notifications."}
+                  {liveTasks.length > 0 ? "No notifications." : "No new notifications."}
                 </p>
                 <button
                   type="button"

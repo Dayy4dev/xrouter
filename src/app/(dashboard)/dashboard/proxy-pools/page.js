@@ -111,6 +111,7 @@ export default function ProxyPoolsPage() {
   const [autoScanStatus, setAutoScanStatus] = useState(null);
   const [pruningDead, setPruningDead] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [viewingBoundPool, setViewingBoundPool] = useState(null);
   // Search/filter/pagination
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -437,6 +438,88 @@ export default function ProxyPoolsPage() {
 
   const allSelected =
     filteredPools.length > 0 && filteredPools.every((p) => selectedIds.includes(p.id));
+
+  const errorPools = useMemo(
+    () => proxyPools.filter((pool) => pool.testStatus === "error"),
+    [proxyPools]
+  );
+
+  const disableAllDeadPools = () => {
+    const deadActive = errorPools.filter((p) => p.isActive === true);
+    if (deadActive.length === 0) return;
+    setConfirmState({
+      title: "Disable Dead Proxies",
+      message: `Disable ${deadActive.length} failed proxy pool(s)?`,
+      confirmText: "Disable",
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmState(null);
+        setBulkBusy(true);
+        try {
+          const res = await fetch("/api/proxy-pools/bulk", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: deadActive.map((p) => p.id), isActive: false }),
+          });
+          if (res.ok) {
+            setProxyPools((prev) =>
+              prev.map((p) => (deadActive.some((d) => d.id === p.id) ? { ...p, isActive: false } : p))
+            );
+            notify.success(`Disabled ${deadActive.length} dead proxy pool(s)`);
+          } else {
+            notify.error("Failed to disable dead proxy pools");
+          }
+        } catch {
+          notify.error("Failed to disable dead proxy pools");
+        } finally {
+          setBulkBusy(false);
+        }
+      },
+    });
+  };
+
+  const deleteAllDeadPools = () => {
+    if (errorPools.length === 0) return;
+    const unboundDead = errorPools.filter((p) => !p.boundConnectionCount);
+    const boundDead = errorPools.filter((p) => (p.boundConnectionCount || 0) > 0);
+    const boundCount = boundDead.reduce((sum, p) => sum + (p.boundConnectionCount || 0), 0);
+
+    if (unboundDead.length === 0) {
+      notify.warning(`All ${errorPools.length} failed proxy pools are currently bound to ${boundCount} connection(s). Unbind them first or use "Disable Dead".`);
+      return;
+    }
+
+    setConfirmState({
+      title: "Delete Failed Proxies",
+      message: boundDead.length > 0
+        ? `Found ${errorPools.length} failed proxies. ${unboundDead.length} unbound proxies will be permanently deleted. (${boundDead.length} proxy pools bound to ${boundCount} connection(s) will be skipped).`
+        : `Permanently delete all ${unboundDead.length} failed proxy pool(s)? This cannot be undone.`,
+      confirmText: "Delete",
+      variant: "danger",
+      onConfirm: async () => {
+        setConfirmState(null);
+        setBulkBusy(true);
+        try {
+          const res = await fetch("/api/proxy-pools/bulk", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: unboundDead.map((p) => p.id) }),
+          });
+          if (res.ok) {
+            const deletedSet = new Set(unboundDead.map((p) => p.id));
+            setProxyPools((prev) => prev.filter((p) => !deletedSet.has(p.id)));
+            notify.success(`Deleted ${unboundDead.length} dead proxy pool(s)`);
+          } else {
+            notify.error("Failed to delete dead proxy pools");
+          }
+        } catch {
+          notify.error("Failed to delete dead proxy pools");
+        } finally {
+          setBulkBusy(false);
+        }
+      },
+    });
+  };
 
   const toggleSelectAll = () => setSelectedIds(allSelected ? [] : filteredPools.map((p) => p.id));
   const clearSelection = () => setSelectedIds([]);
@@ -1067,20 +1150,56 @@ export default function ProxyPoolsPage() {
       </div>
 
       <Card>
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            {proxyPools.length > 0 && (
+              <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer mr-1">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="size-4 rounded border-border"
+                />
+                <span className="whitespace-nowrap">{allSelected ? "Unselect all" : "Select all"}</span>
+              </label>
+            )}
+            <Badge variant="default">Total: {proxyPools.length}</Badge>
+            <Badge variant="success">Active: {activeCount}</Badge>
+            {errorPools.length > 0 && (
+              <Badge variant="danger">Failed: {errorPools.length}</Badge>
+            )}
+          </div>
+
           {proxyPools.length > 0 && (
-            <label className="flex items-center gap-1.5 text-xs text-text-muted cursor-pointer">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={toggleSelectAll}
-                className="size-4 rounded border-border"
-              />
-              {allSelected ? "Unselect all" : "Select all"}
-            </label>
+            <div className="flex flex-wrap items-center gap-2 pt-2 sm:pt-0 border-t border-border/40 sm:border-0 sm:ml-auto">
+              {errorPools.some((p) => p.isActive === true) && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon="block"
+                  onClick={disableAllDeadPools}
+                  disabled={bulkBusy || healthChecking}
+                  title="Disable all failed proxies"
+                  className="flex-1 sm:flex-none justify-center whitespace-nowrap"
+                >
+                  Disable Dead
+                </Button>
+              )}
+              {errorPools.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon="delete_sweep"
+                  onClick={deleteAllDeadPools}
+                  disabled={bulkBusy || healthChecking}
+                  title="Delete all failed proxies"
+                  className="flex-1 sm:flex-none justify-center whitespace-nowrap text-red-500 hover:text-red-400 hover:border-red-500/30"
+                >
+                  Delete Dead
+                </Button>
+              )}
+            </div>
           )}
-          <Badge variant="default">Total: {proxyPools.length}</Badge>
-          <Badge variant="success">Active: {activeCount}</Badge>
         </div>
 
         {(selectedIds.length > 0 || healthChecking) && (
@@ -1158,16 +1277,50 @@ export default function ProxyPoolsPage() {
                     {pool.type === "netlify" && (
                       <Badge variant="default" size="sm">netlify relay</Badge>
                     )}
-                    <Badge variant="default" size="sm">
-                      {pool.boundConnectionCount || 0} bound
-                    </Badge>
+                    {pool.boundConnectionCount > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setViewingBoundPool(pool)}
+                        className="cursor-pointer transition-opacity hover:opacity-80"
+                        title="Click to view bound connections"
+                      >
+                        <Badge variant="primary" size="sm">
+                          <span className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[13px]">link</span>
+                            {pool.boundConnectionCount} bound
+                          </span>
+                        </Badge>
+                      </button>
+                    ) : (
+                      <Badge variant="default" size="sm">
+                        0 bound
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-xs text-text-muted truncate mt-1">{pool.proxyUrl}</p>
                   {pool.noProxy ? (
                     <p className="text-xs text-text-muted truncate">No proxy: {pool.noProxy}</p>
                   ) : null}
-                  <p className="text-[11px] text-text-muted mt-1">
-                    Last tested: {formatDateTime(pool.lastTestedAt)}
+                  <p className="text-[11px] text-text-muted mt-1 flex items-center gap-1.5 flex-wrap">
+                    <span>Last tested: {formatDateTime(pool.lastTestedAt)}</span>
+                    {Number.isFinite(Number(pool.elapsedMs)) && Number(pool.elapsedMs) > 0 && (
+                      <span
+                        className={`px-1.5 py-0.2 rounded font-mono text-[10px] font-medium ${
+                          pool.testStatus === "active"
+                            ? Number(pool.elapsedMs) < 1000
+                              ? "text-emerald-500 bg-emerald-500/10"
+                              : Number(pool.elapsedMs) < 3000
+                              ? "text-amber-500 bg-amber-500/10"
+                              : "text-orange-500 bg-orange-500/10"
+                            : "text-red-500 bg-red-500/10"
+                        }`}
+                        title={`Test latency: ${pool.elapsedMs}ms`}
+                      >
+                        {Number(pool.elapsedMs) < 1000
+                          ? `${pool.elapsedMs}ms`
+                          : `${(Number(pool.elapsedMs) / 1000).toFixed(1)}s`}
+                      </span>
+                    )}
                     {pool.lastError ? ` · ${pool.lastError}` : ""}
                   </p>
                   </div>
@@ -1562,6 +1715,42 @@ export default function ProxyPoolsPage() {
             <Button fullWidth variant="ghost" onClick={closeFormModal} disabled={saving}>
               Cancel
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Bound Connections Modal */}
+      <Modal
+        isOpen={!!viewingBoundPool}
+        onClose={() => setViewingBoundPool(null)}
+        title={`Connections bound to "${viewingBoundPool?.name}"`}
+        size="md"
+        footer={(
+          <Button variant="secondary" onClick={() => setViewingBoundPool(null)}>
+            Close
+          </Button>
+        )}
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-text-muted">
+            The following {viewingBoundPool?.boundConnections?.length || 0} connection(s) are actively configured to route through this proxy pool:
+          </p>
+          <div className="max-h-60 overflow-y-auto divide-y divide-border/40 rounded-lg border border-border">
+            {viewingBoundPool?.boundConnections?.map((conn) => (
+              <div key={conn.id} className="flex items-center justify-between p-2.5 text-xs">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium truncate">{conn.name}</p>
+                  <p className="text-text-muted truncate mt-0.5">Provider: {conn.provider}</p>
+                </div>
+                <a
+                  href={`/dashboard/providers/${conn.provider}`}
+                  className="ml-2 inline-flex items-center gap-1 text-primary hover:underline text-xs font-medium"
+                >
+                  View Provider
+                  <span className="material-symbols-outlined text-sm">open_in_new</span>
+                </a>
+              </div>
+            ))}
           </div>
         </div>
       </Modal>

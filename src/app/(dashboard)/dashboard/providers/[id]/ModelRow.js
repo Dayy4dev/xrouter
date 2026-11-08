@@ -1,7 +1,7 @@
 import PropTypes from "prop-types";
-import { CapacityBadges } from "@/shared/components";
+import { CapacityBadges, ModelTierBadge } from "@/shared/components";
 
-export default function ModelRow({ model, fullModel, alias, copied, onCopy, testStatus, isCustom, isFree, onDeleteAlias, onTest, isTesting, onDisable, caps, thinkingSuffix }) {
+export default function ModelRow({ model, fullModel, alias, copied, onCopy, testStatus, latencyMs, isCustom, isFree, onDeleteAlias, onTest, isTesting, onDisable, caps, thinkingSuffix }) {
   const displayModel = thinkingSuffix ? `${fullModel}(${thinkingSuffix})` : fullModel;
   const borderColor = testStatus === "ok"
     ? "border-success-border"
@@ -25,10 +25,29 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
           {testStatus === "ok" ? "check_circle" : testStatus === "error" ? "cancel" : "smart_toy"}
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0">
-          <code className="max-w-[70vw] truncate rounded bg-sidebar px-1 py-0.5 font-mono text-[10.5px] text-text-muted sm:max-w-[300px]">{displayModel}</code>
+          <div className="flex items-center gap-1">
+            <code className="max-w-[70vw] truncate rounded bg-sidebar px-1 py-0.5 font-mono text-[10.5px] text-text-muted sm:max-w-[300px]">{displayModel}</code>
+            <ModelTierBadge model={model} providerId={fullModel?.split("/")?.[0] || ""} isFree={isFree} />
+          </div>
           <span className="flex min-w-0 items-center text-[8px] gap-1 pl-0.5">
             {model.name && <span className="truncate text-[8px] italic text-text-muted/70">{model.name}</span>}
             <CapacityBadges caps={caps} colorOverride="text-text-muted/70" size={9} />
+            {Number.isFinite(latencyMs) && latencyMs > 0 && (
+              <span
+                className={`px-1 py-0.2 rounded font-mono text-[8px] font-medium ${
+                  testStatus === "ok"
+                    ? latencyMs < 800
+                      ? "text-emerald-500 bg-emerald-500/10"
+                      : latencyMs < 2500
+                      ? "text-amber-500 bg-amber-500/10"
+                      : "text-orange-500 bg-orange-500/10"
+                    : "text-red-500 bg-red-500/10"
+                }`}
+                title={`Ping response latency: ${latencyMs}ms`}
+              >
+                {latencyMs < 1000 ? `${latencyMs}ms` : `${(latencyMs / 1000).toFixed(1)}s`}
+              </span>
+            )}
           </span>
         </div>
         {onTest && (
@@ -92,6 +111,7 @@ ModelRow.propTypes = {
   copied: PropTypes.string,
   onCopy: PropTypes.func.isRequired,
   testStatus: PropTypes.oneOf(["ok", "error"]),
+  latencyMs: PropTypes.number,
   isCustom: PropTypes.bool,
   isFree: PropTypes.bool,
   onDeleteAlias: PropTypes.func,

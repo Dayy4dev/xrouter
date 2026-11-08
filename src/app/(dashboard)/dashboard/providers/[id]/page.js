@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -14,6 +14,7 @@ import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { getThinkingLevels } from "open-sse/providers/thinkingLevels.js";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
+import { useModelTestStore } from "@/store/modelTestStore";
 import { translate } from "@/i18n/runtime";
 import { fetchSuggestedModels } from "@/shared/utils/providerModelsFetcher";
 import { getProviderCustomModelRows } from "@/shared/utils/providerCustomModels";
@@ -66,9 +67,9 @@ export default function ProviderDetailPage() {
   const [customModels, setCustomModels] = useState([]);
   const [studioModels, setStudioModels] = useState([]);
   const [headerImgError, setHeaderImgError] = useState(false);
-  const [modelTestResults, setModelTestResults] = useState({});
-  const [modelsTestError, setModelsTestError] = useState("");
-  const [testingModelIds, setTestingModelIds] = useState(() => new Set());
+  const [modelSearchQuery, setModelSearchQuery] = useState("");
+  const [modelStatusFilter, setModelStatusFilter] = useState("all");
+  const [enablingAll, setEnablingAll] = useState(false);
   const [showAddCustomModel, setShowAddCustomModel] = useState(false);
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
   const [bulkProxyPoolId, setBulkProxyPoolId] = useState("__none__");
@@ -207,6 +208,14 @@ export default function ProviderDetailPage() {
     return levels && levels.includes(thinkingMode) ? thinkingMode : null;
   };
   const providerStorageAlias = isCompatible ? providerId : providerAlias;
+  const providerKey = providerStorageAlias || providerId;
+  const testState = useModelTestStore((s) => s.tests[providerKey]);
+  const isTestingAll = !!testState?.isTestingAll;
+  const testAllProgress = testState?.progress || null;
+  const modelTestResults = testState?.results || {};
+  const modelTestLatencies = testState?.latencies || {};
+  const modelsTestError = testState?.error || "";
+  const testingModelIds = useMemo(() => new Set(testState?.testingModelIds || []), [testState?.testingModelIds]);
   // Studio names replace the model they point at: those models leave the list below.
   const studioTargetIndex = buildStudioTargetIndex(studioModels);
   // Union of levels across this provider's reasoning models - drives the level picker options.
@@ -286,12 +295,53 @@ export default function ProviderDetailPage() {
     });
   };
 
-  const handleEnableAll = async () => {
+  const handleDisableFailed = async (ids) => {
+    if (!ids || !ids.length) return;
+    setConfirmState({
+      title: "Disable Failed Models",
+      message: `Disable ${ids.length} failed model(s)?`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          const res = await fetch("/api/models/disabled", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ providerAlias: providerStorageAlias, ids }),
+          });
+          if (res.ok) await fetchDisabledModels();
+        } catch (error) {
+          console.log("Error disabling failed models:", error);
+        }
+      }
+    });
+  };
+
+  const handleEnableAll = async (inactiveIds = []) => {
+    if (enablingAll) return;
+    setEnablingAll(true);
     try {
+      // 1. Re-enable every model currently disabled in database
       const res = await fetch(`/api/models/disabled?providerAlias=${encodeURIComponent(providerStorageAlias)}`, { method: "DELETE" });
       if (res.ok) await fetchDisabledModels();
+
+      // 2. Add any not-yet-added catalog/suggested models so the whole
+      //    provider's model set shows up in active list in one click
+      const ids = Array.from(new Set(Array.isArray(inactiveIds) ? inactiveIds : []));
+      if (ids.length > 0) {
+        await fetch("/api/models/custom", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            providerAlias: providerStorageAlias,
+            models: ids.map((id) => ({ id, type: "llm" })),
+          }),
+        });
+        await fetchCustomModels();
+      }
     } catch (error) {
       console.log("Error enabling all models:", error);
+    } finally {
+      setEnablingAll(false);
     }
   };
 
@@ -1203,24 +1253,17 @@ export default function ProviderDetailPage() {
     </Modal>
   );
 
-  const handleTestModel = async (modelId) => {
-    if (testingModelIds.has(modelId)) return;
-    setTestingModelIds((prev) => new Set(prev).add(modelId));
-    try {
-      const res = await fetch("/api/models/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: `${providerStorageAlias}/${modelId}` }),
-      });
-      const data = await res.json();
-      setModelTestResults((prev) => ({ ...prev, [modelId]: data.ok ? "ok" : "error" }));
-      setModelsTestError(data.ok ? "" : (data.error || "Model not reachable"));
-    } catch {
-      setModelTestResults((prev) => ({ ...prev, [modelId]: "error" }));
-      setModelsTestError("Network error");
-    } finally {
-      setTestingModelIds((prev) => { const n = new Set(prev); n.delete(modelId); return n; });
-    }
+  const handleTestModel = (modelId) => {
+    return useModelTestStore.getState().testSingleModel(providerKey, modelId);
+  };
+
+  const handleTestAllModels = (targetIds) => {
+    return useModelTestStore.getState().testAllModels({
+      providerKey,
+      targetIds,
+      providerTitle: providerInfo?.name || providerDisplayAlias || "provider",
+      href: typeof window !== "undefined" ? window.location.pathname : `/dashboard/providers/${providerKey}`,
+    });
   };
 
   const renderModelsSection = () => {
@@ -1259,10 +1302,39 @@ export default function ProviderDetailPage() {
       type: "llm",
     }).filter((row) => !studioTargetIndex.isStudioTarget(providerStorageAlias, row.id));
 
+    // Apply search query & status filter
+    const matchesFilter = (m) => {
+      if (modelSearchQuery.trim()) {
+        const q = modelSearchQuery.trim().toLowerCase();
+        const idMatch = m.id?.toLowerCase().includes(q);
+        const nameMatch = m.name?.toLowerCase().includes(q);
+        if (!idMatch && !nameMatch) return false;
+      }
+      if (modelStatusFilter !== "all") {
+        const status = modelTestResults[m.id];
+        if (modelStatusFilter === "ok" && status !== "ok") return false;
+        if (modelStatusFilter === "error" && status !== "error") return false;
+        if (modelStatusFilter === "untested" && status) return false;
+      }
+      return true;
+    };
+
+    const filteredCustomModelRows = customModelRows.filter(matchesFilter);
+    const filteredDisplayModels = displayModels.filter(matchesFilter);
+
+    const hasAnyModels = customModelRows.length > 0 || displayModels.length > 0;
+    const hasFilteredModels = filteredCustomModelRows.length > 0 || filteredDisplayModels.length > 0;
+
     return (
       <div className="flex flex-wrap gap-3">
+        {hasAnyModels && !hasFilteredModels && (
+          <div className="w-full py-4 text-center text-xs text-text-muted">
+            {translate("No models match the current filter.")}
+          </div>
+        )}
+
         {/* Custom models first */}
-        {customModelRows.map((model) => (
+        {filteredCustomModelRows.map((model) => (
           <ModelRow
             key={`${model.source}-${model.fullModel}`}
             model={{ id: model.id, name: model.name }}
@@ -1279,6 +1351,7 @@ export default function ProviderDetailPage() {
               }
             }}
             testStatus={modelTestResults[model.id]}
+            latencyMs={modelTestLatencies[model.id]}
             onTest={connections.length > 0 || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
             isTesting={testingModelIds.has(model.id)}
             isCustom
@@ -1288,7 +1361,7 @@ export default function ProviderDetailPage() {
           />
         ))}
 
-        {displayModels.map((model) => {
+        {filteredDisplayModels.map((model) => {
           const fullModel = `${providerStorageAlias}/${model.id}`;
           const oldFormatModel = `${providerId}/${model.id}`;
           const existingAlias = Object.entries(modelAliases).find(
@@ -1305,6 +1378,7 @@ export default function ProviderDetailPage() {
               onSetAlias={(alias) => handleSetAlias(model.id, alias, providerStorageAlias)}
               onDeleteAlias={() => handleDeleteAlias(existingAlias)}
               testStatus={modelTestResults[model.id]}
+              latencyMs={modelTestLatencies[model.id]}
               onTest={connections.length > 0 || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
               isTesting={testingModelIds.has(model.id)}
               isFree={model.isFree}
@@ -1900,45 +1974,156 @@ export default function ProviderDetailPage() {
 
       {/* Models */}
       <Card>
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold">
-              {"Available Models"}
-            </h2>
-            {providerThinkingLevels && (
-              <select
-                value={thinkingMode}
-                onChange={(e) => handleThinkingModeChange(e.target.value)}
-                title="Appends (level) suffix to copied model names"
-                className="rounded-md border border-border bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
-              >
-                {providerThinkingLevels.map((opt) => (
-                  <option key={opt} value={opt}>{`Thinking: ${opt.charAt(0).toUpperCase() + opt.slice(1)}`}</option>
-                ))}
-              </select>
-            )}
+        <div className="mb-4 flex flex-col gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold">
+                {"Available Models"}
+              </h2>
+              {providerThinkingLevels && (
+                <select
+                  value={thinkingMode}
+                  onChange={(e) => handleThinkingModeChange(e.target.value)}
+                  title="Appends (level) suffix to copied model names"
+                  className="rounded-md border border-border bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
+                >
+                  {providerThinkingLevels.map((opt) => (
+                    <option key={opt} value={opt}>{`Thinking: ${opt.charAt(0).toUpperCase() + opt.slice(1)}`}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            {!isCompatible && (() => {
+              const customModelRows = getProviderCustomModelRows({
+                customModels,
+                modelAliases,
+                providerAlias: providerStorageAlias,
+                builtInModels: models,
+                type: "llm",
+              }).filter((row) => !studioTargetIndex.isStudioTarget(providerStorageAlias, row.id));
+
+              const addedIds = new Set(customModelRows.map((m) => m.id));
+
+              const availableCatalogIds = Array.from(new Set([
+                ...models.filter((m) => { const k = getModelKind(m); return !k || k === "llm"; }).map((m) => m.id),
+                ...kiloFreeModels.filter((fm) => !models.some((m) => m.id === fm.id)).map((m) => m.id),
+                ...suggestedModels.filter((m) => m?.id).map((m) => m.id),
+              ]));
+
+              const notAddedCatalogIds = availableCatalogIds.filter((id) => !addedIds.has(id));
+
+              const allIds = Array.from(new Set([
+                ...customModelRows.map((m) => m.id),
+                ...availableCatalogIds,
+              ]));
+
+              const activeIds = allIds.filter((id) => !disabledModelIds.includes(id));
+              const failedActiveIds = activeIds.filter((id) => modelTestResults[id] === "error");
+              const hasInactive = disabledModelIds.length > 0 || notAddedCatalogIds.length > 0;
+              const canTest = connections.length > 0 || isFreeNoAuth;
+
+              return (
+                <div className="flex flex-wrap items-center gap-2">
+                  {canTest && activeIds.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      icon={isTestingAll ? "progress_activity" : "science"}
+                      disabled={isTestingAll}
+                      onClick={() => handleTestAllModels(activeIds)}
+                      title="Ping test all active models"
+                    >
+                      {isTestingAll
+                        ? testAllProgress
+                          ? `Testing (${testAllProgress.current}/${testAllProgress.total})`
+                          : translate("Testing...")
+                        : translate("Test All")}
+                    </Button>
+                  )}
+                  {failedActiveIds.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      icon="block"
+                      onClick={() => handleDisableFailed(failedActiveIds)}
+                      className="text-amber-500 hover:text-amber-400 hover:border-amber-500/30"
+                      title="Disable models that failed test"
+                    >
+                      {`Disable Failed (${failedActiveIds.length})`}
+                    </Button>
+                  )}
+                  {hasInactive && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      icon={enablingAll ? "progress_activity" : "restart_alt"}
+                      disabled={enablingAll || isTestingAll}
+                      onClick={() => handleEnableAll(notAddedCatalogIds)}
+                      title="Activate all available and disabled models"
+                    >
+                      {enablingAll ? translate("Activating...") : translate("Active All")}
+                    </Button>
+                  )}
+                  {activeIds.length > 0 && (
+                    <Button size="sm" variant="secondary" icon="block" onClick={() => handleDisableAll(activeIds)}>
+                      Disable All
+                    </Button>
+                  )}
+                </div>
+              );
+            })()}
           </div>
-          {!isCompatible && (() => {
-            const allIds = [
-              ...models,
-              ...kiloFreeModels.filter((fm) => !models.some((m) => m.id === fm.id)),
-            ].filter((m) => { const k = getModelKind(m); return !k || k === "llm"; }).map((m) => m.id);
-            const activeIds = allIds.filter((id) => !disabledModelIds.includes(id));
-            return (
-              <div className="flex gap-2">
-                {disabledModelIds.length > 0 && (
-                  <Button size="sm" variant="secondary" icon="restart_alt" onClick={handleEnableAll}>
-                    Active All
-                  </Button>
-                )}
-                {activeIds.length > 0 && (
-                  <Button size="sm" variant="secondary" icon="block" onClick={() => handleDisableAll(activeIds)}>
-                    Disable All
-                  </Button>
+
+          {/* Test All Progress bar */}
+          {isTestingAll && testAllProgress && (
+            <div className="w-full bg-border/40 rounded-full h-1.5 overflow-hidden -mt-1 mb-1">
+              <div
+                className="bg-primary h-full transition-all duration-300 rounded-full"
+                style={{
+                  width: `${Math.min(100, Math.round((testAllProgress.current / (testAllProgress.total || 1)) * 100))}%`,
+                }}
+              />
+            </div>
+          )}
+
+          {/* Search bar and Status filter */}
+          {!isCompatible && (
+            <div className="flex flex-col sm:flex-row gap-2 items-center">
+              <div className="relative flex-1 w-full">
+                <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-text-muted">
+                  search
+                </span>
+                <input
+                  type="text"
+                  placeholder={translate("Search models by id or name...")}
+                  value={modelSearchQuery}
+                  onChange={(e) => setModelSearchQuery(e.target.value)}
+                  className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-7 text-xs focus:border-primary focus:outline-none"
+                />
+                {modelSearchQuery && (
+                  <button
+                    onClick={() => setModelSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-foreground"
+                  >
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
                 )}
               </div>
-            );
-          })()}
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <span className="text-[11px] text-text-muted whitespace-nowrap">Status:</span>
+                <select
+                  value={modelStatusFilter}
+                  onChange={(e) => setModelStatusFilter(e.target.value)}
+                  className="rounded-md border border-border bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
+                >
+                  <option value="all">All Models</option>
+                  <option value="ok">Reachable (OK)</option>
+                  <option value="error">Failed (Error)</option>
+                  <option value="untested">Untested</option>
+                </select>
+              </div>
+            </div>
+          )}
         </div>
         {!!modelsTestError && (
           <div className="mb-3">

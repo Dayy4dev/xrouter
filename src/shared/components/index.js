@@ -47,6 +47,7 @@ export { default as WelcomeModal } from "./WelcomeModal";
 export { default as UpdateBanner } from "./UpdateBanner";
 export { default as DownloadBackupModal } from "./DownloadBackupModal";
 export { default as Pagination } from "./Pagination";
+export { default as ModelTierBadge } from "./ModelTierBadge";
 
 // Layouts
 export * from "./layouts";
