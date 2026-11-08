@@ -53,6 +53,7 @@ async function getInternalHeaders(model = "") {
     headers["Authorization"] = `Bearer ${apiKey}`;
   }
   headers["x-9r-cli-token"] = await getConsistentMachineId(CLI_TOKEN_SALT);
+  headers["x-9r-test-probe"] = "1";
 
   // OpenCode free tier requires official CLI User-Agent & client header even internally
   if (String(model).startsWith("opencode/") || String(model).startsWith("oc/") || String(model).startsWith("opencode-zen/")) {

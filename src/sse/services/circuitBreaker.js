@@ -115,6 +115,19 @@ export function recordCircuitSuccess(connectionId) {
 }
 
 /**
+ * Manually reset circuit breaker for a connection or all connections.
+ */
+export function resetCircuitBreaker(connectionId = null) {
+  if (connectionId) {
+    circuitBreakerState.delete(connectionId);
+    log.info("CIRCUIT", `🔄 Circuit breaker manually reset for ${connectionId.slice(0, 8)}`);
+  } else {
+    circuitBreakerState.clear();
+    log.info("CIRCUIT", `🔄 Circuit breaker cleared for all connections`);
+  }
+}
+
+/**
  * Periodic auto-recovery scanner: checks connections whose cooldown expired and marks them eligible.
  */
 export function getCircuitBreakerMetrics() {

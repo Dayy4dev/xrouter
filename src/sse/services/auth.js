@@ -37,6 +37,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
   const preferredConnectionId = options?.preferredConnectionId || null;
   const conversationKey = options?.conversationKey || null;
   const requestedModel = options?.requestedModel || model;
+  const isTestProbe = Boolean(options?.isTestProbe);
   // Acquire mutex to prevent race conditions
   const currentMutex = selectionMutex;
   let resolveMutex;
@@ -172,12 +173,12 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     // Filter out model-locked, excluded, circuit-broken, and Antigravity quota-exhausted connections.
     const availableConnections = connections.filter(c => {
       if (excludeSet.has(c.id)) return false;
-      if (isModelLockActive(c, model)) return false;
-      if (isCircuitBreakerOpen(c.id)) return false;
+      if (isModelLockActive(c, model) && !isTestProbe) return false;
+      if (isCircuitBreakerOpen(c.id) && !isTestProbe) return false;
       const enabled = c.providerSpecificData?.enabledModels;
       if (providerId === "codex" && Array.isArray(enabled) && enabled.length && requestedModel && !enabled.includes(requestedModel)) return false;
       // Antigravity: skip if live quota exhausted for this model
-      if (isAntigravity && model && antigravityQuotaCache) {
+      if (isAntigravity && model && antigravityQuotaCache && !isTestProbe) {
         const cachedQuotas = antigravityQuotaCache.get(c.id);
         const quota = getAntigravityModelQuota(cachedQuotas, model);
         if (quota && quota.remainingPercentage <= 0 && quota.resetAt && new Date(quota.resetAt).getTime() > Date.now()) {
@@ -471,8 +472,13 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
     }
   }
 
-  // Do NOT trip circuit breaker on per-model rate limits (e.g. Tagflow/ADCode "upstream-rate-limit" or single-model 429)
-  // Circuit breaker should only trip when an account itself is dead/failing globally (5xx/connection failure/exhausted)
+  // Circuit breaker should ONLY trip when an account itself is dead/failing globally (5xx/connection failure/exhausted).
+  // NEVER trip circuit breaker on:
+  // - 404 (Model not found / endpoint not found)
+  // - 400/406/422 (Bad request / client / unsupported parameter errors)
+  // - Any per-model failure when a specific model was requested and status < 500 (e.g. model rate limits, tier restrictions)
+  const isModelSpecificClientError = Boolean(model) && status < 500;
+  const isClientError = status === 400 || status === 404 || status === 406 || status === 422;
   const isPerModelRateLimit = status === 429 && (
     (typeof reason === "string" && (
       reason.includes("upstream-rate-limit") ||
@@ -480,17 +486,18 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
       reason.includes("rate limit") ||
       reason.includes("Model is unavailable")
     )) ||
-    model
+    Boolean(model)
   );
 
-  // Trip circuit breaker on actual connection/server-level errors (not per-model rate limits)
-  if (shouldFallback && connectionId && connectionId !== "noauth" && !isPerModelRateLimit) {
+  // Trip circuit breaker on actual connection/server-level errors (5xx/network outages or account-wide 429 exhaustion)
+  if (shouldFallback && connectionId && connectionId !== "noauth" && !isPerModelRateLimit && !isModelSpecificClientError && !isClientError) {
     tripCircuitBreaker(connectionId, { status, error: reason, provider, model });
   }
 
+  const isAccountWideError = !model || status === 401 || status === 403 || status >= 500;
   await updateProviderConnection(connectionId, {
     ...lockUpdate,
-    testStatus: "unavailable",
+    ...(isAccountWideError ? { testStatus: "unavailable" } : {}),
     lastError: reason,
     errorCode: status,
     lastErrorAt: new Date().toISOString(),

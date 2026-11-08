@@ -431,9 +431,11 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
   let lastHeaders = null;
 
   while (true) {
+    const isTestProbe = request?.headers?.get("x-9r-test-probe") === "1" || clientRawRequest?.headers?.["x-9r-test-probe"] === "1";
     const credentials = await getProviderCredentials(provider, excludeConnectionIds, model, {
       requestedModel: requestedModel || model,
       conversationKey,
+      isTestProbe,
     });
 
     // All accounts unavailable
