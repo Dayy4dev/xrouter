@@ -45,26 +45,26 @@ function formatResetTimeDisplay(resetTime) {
 function getColorClasses(remainingPercentage) {
   if (remainingPercentage > 70) {
     return {
-      text: "text-green-600 dark:text-green-400",
-      bg: "bg-green-500",
-      bgLight: "bg-green-500/10",
+      text: "text-success",
+      bg: "bg-success-solid",
+      bgLight: "bg-success-bg",
       emoji: "",
     };
   }
 
   if (remainingPercentage >= 30) {
     return {
-      text: "text-yellow-600 dark:text-yellow-400",
-      bg: "bg-yellow-500",
-      bgLight: "bg-yellow-500/10",
+      text: "text-warning",
+      bg: "bg-warning-solid",
+      bgLight: "bg-warning-bg",
       emoji: "",
     };
   }
 
   return {
-    text: "text-red-600 dark:text-red-400",
-    bg: "bg-red-500",
-    bgLight: "bg-red-500/10",
+    text: "text-danger",
+    bg: "bg-danger-solid",
+    bgLight: "bg-danger-bg",
     emoji: "",
   };
 }
@@ -176,7 +176,7 @@ export default function QuotaTable({
             displayRemaining = `${(remTokens / 1000000).toFixed(1)}M tok (${remPercent}%)`;
           }
           const colors = isCreditBalance
-            ? { text: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500", bgLight: "bg-blue-500/10", emoji: "" }
+            ? { text: "text-info", bg: "bg-info-solid", bgLight: "bg-info-bg", emoji: "" }
             : getColorClasses(remPercent);
           // Qoder flags open-ended plans with `neverExpires` (its API reports a
           // year-9999 sentinel). Return "-"/"Never expires" rather than an empty

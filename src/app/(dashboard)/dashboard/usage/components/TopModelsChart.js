@@ -14,7 +14,13 @@ import {
 } from "recharts";
 import Card from "@/shared/components/Card";
 
-const COLORS = ["#E56A4A", "#c04a2c", "#f0916f", "#8a5a45", "#a8a8a8"];
+const COLORS = [
+  "var(--color-primary)",
+  "color-mix(in srgb, var(--color-primary) 85%, white 15%)",
+  "color-mix(in srgb, var(--color-primary) 70%, transparent)",
+  "color-mix(in srgb, var(--color-primary) 50%, transparent)",
+  "color-mix(in srgb, var(--color-primary) 35%, transparent)",
+];
 
 const fmtTokens = (n) => {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;

@@ -1247,7 +1247,7 @@ export default function ProviderLimits() {
             type="button"
             onClick={handleDisableDepleted}
             disabled={bulkToggling}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-red-500/30 px-2 text-xs text-red-500 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+            className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-danger-border px-2 text-xs text-danger transition-colors hover:bg-danger-bg disabled:opacity-50"
             title="Disable connections with depleted quota on the current page"
           >
             <span className="material-symbols-outlined text-[14px]">block</span>
@@ -1259,7 +1259,7 @@ export default function ProviderLimits() {
             type="button"
             onClick={handleEnableAvailable}
             disabled={bulkToggling}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-emerald-500/30 px-2 text-xs text-emerald-500 transition-colors hover:bg-emerald-500/10 disabled:opacity-50"
+            className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-success-border px-2 text-xs text-success transition-colors hover:bg-success-bg disabled:opacity-50"
             title="Enable connections that still have quota on the current page"
           >
             <span className="material-symbols-outlined text-[14px]">
@@ -1374,7 +1374,7 @@ export default function ProviderLimits() {
                       ) : null}
                       {isGlm && quota?.plan && quota.plan !== "None" ? (
                         <div className="mt-0.5">
-                          <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          <span className="inline-flex items-center rounded-md bg-success-bg px-1.5 py-0.5 text-[10px] font-medium text-success border border-success-border">
                             {quota.plan}
                           </span>
                         </div>
@@ -1385,7 +1385,7 @@ export default function ProviderLimits() {
                             {kiroMethodLabel(conn)}
                           </span>
                           {kiroRegion(conn) && (
-                            <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+                            <span className="rounded-full bg-info-bg px-2 py-0.5 text-[10px] font-semibold text-info">
                               {kiroRegion(conn)}
                             </span>
                           )}
@@ -1394,9 +1394,9 @@ export default function ProviderLimits() {
                               isInactive
                                 ? "bg-surface-2 text-text-muted"
                                 : conn.testStatus === "active" || conn.testStatus === "success"
-                                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                  ? "bg-success-bg text-success"
                                   : conn.testStatus === "error" || conn.testStatus === "expired" || conn.testStatus === "unavailable"
-                                    ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                                    ? "bg-danger-bg text-danger"
                                     : "bg-surface-2 text-text-muted"
                             }`}
                           >
@@ -1551,7 +1551,7 @@ export default function ProviderLimits() {
                         onClick={() => handleDeleteConnection(conn.id)}
                         disabled={rowBusy}
                         aria-label="Delete connection"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-500/10 text-red-500 transition-colors disabled:opacity-50"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-danger-bg text-danger transition-colors disabled:opacity-50"
                       >
                         <span
                           className={`material-symbols-outlined text-[18px] ${deletingId === conn.id ? "animate-pulse" : ""}`}
@@ -1590,7 +1590,7 @@ export default function ProviderLimits() {
                   </div>
                 ) : error ? (
                   <div className="text-center py-5">
-                    <span className="material-symbols-outlined text-[28px] text-red-500">
+                    <span className="material-symbols-outlined text-[28px] text-danger">
                       error
                     </span>
                     <p className="mt-1.5 text-xs text-text-muted">{error}</p>
@@ -1830,7 +1830,7 @@ export default function ProviderLimits() {
                   Loading reset credits...
                 </div>
               ) : resetCreditsState.error ? (
-                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">
+                <div className="rounded-xl border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
                   {resetCreditsState.error}
                 </div>
               ) : resetCreditsState.data?.kind === "glm" ? (
@@ -1839,7 +1839,7 @@ export default function ProviderLimits() {
                     <span>{resetCreditsState.data.availableCount == null ? "Inventory unavailable — not zero." : `${resetCreditsState.data.availableCount} reset cards available`}</span>
                     <button type="button" disabled={Boolean(resettingLimitId)} onClick={() => handleViewCodexResetCredits(resetCreditsState.connection)} className="rounded-lg border px-3 py-1 disabled:opacity-50">Refresh inventory</button>
                   </div>
-                  {resetCreditsState.recoveryError && <p role="alert" className="text-sm text-red-600 dark:text-red-300">{resetCreditsState.recoveryError}</p>}
+                  {resetCreditsState.recoveryError && <p role="alert" className="text-sm text-danger">{resetCreditsState.recoveryError}</p>}
                   {resetCreditsState.refreshNeeded && <button type="button" disabled={Boolean(resettingLimitId)} onClick={() => handleGlmReset(resetCreditsState.connection)} className="rounded-lg border px-3 py-1 text-xs disabled:opacity-50">Refresh to finish</button>}
                   {resetCreditsState.pending && (
                     <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
@@ -1980,13 +1980,13 @@ export default function ProviderLimits() {
 
             <div className="p-4 space-y-3">
               {glmClaimModal.error && (
-                <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-600 dark:text-red-400">
+                <div className="rounded-lg border border-danger-border bg-danger-bg p-3 text-xs text-danger">
                   {glmClaimModal.error}
                 </div>
               )}
 
               {glmClaimModal.success && (
-                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-600 dark:text-emerald-400">
+                <div className="rounded-lg border border-success-border bg-success-bg p-3 text-xs text-success">
                   {glmClaimModal.success}
                 </div>
               )}
@@ -1997,7 +1997,7 @@ export default function ProviderLimits() {
                   {glmClaimModal.activeBalances.map((bal, idx) => (
                     <div
                       key={bal.bucket_id || idx}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-success-border bg-success-bg/30 p-3"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="font-semibold text-sm text-text-primary truncate">
@@ -2008,7 +2008,7 @@ export default function ProviderLimits() {
                           {bal.expires_at && ` · Expires ${new Date(bal.expires_at * 1000).toLocaleDateString()}`}
                         </div>
                       </div>
-                      <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                      <span className="inline-flex items-center gap-1 rounded bg-success-bg px-2 py-0.5 text-[11px] font-medium text-success border border-success-border">
                         Active
                       </span>
                     </div>
@@ -2035,7 +2035,7 @@ export default function ProviderLimits() {
                             {plan.name}
                           </span>
                           {plan.source === "incentive_reward" && (
-                            <span className="inline-flex items-center rounded bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400">
+                            <span className="inline-flex items-center rounded bg-info-bg px-1.5 py-0.5 text-[10px] font-medium text-info border border-info-border">
                               Task
                             </span>
                           )}
@@ -2101,7 +2101,7 @@ export default function ProviderLimits() {
                   type="button"
                   onClick={() => handleExecuteGlmClaim("zcode-v3-start-plan-0817")}
                   disabled={glmClaimModal.claiming}
-                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-500 transition-colors disabled:opacity-50"
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-success-solid px-3 py-2 text-xs font-medium text-white hover:bg-success transition-colors disabled:opacity-50"
                 >
                   {glmClaimModal.claiming && (
                     <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>

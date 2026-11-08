@@ -161,7 +161,7 @@ function TopologyBackdropPicker() {
         </div>
       )}
 
-      {error && <div className="text-xs text-red-500 px-1">{error}</div>}
+      {error && <div className="text-xs text-danger px-1">{error}</div>}
     </div>
   );
 }

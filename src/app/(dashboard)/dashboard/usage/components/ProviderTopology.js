@@ -102,10 +102,10 @@ function RouterNode({ data }) {
   const powering = (data.activeCount || 0) > 0;
   return (
     <div
-      className={`relative z-[1] flex items-center justify-center px-5 py-3 rounded-[6px] border-2 min-w-[130px] ${
+      className={`relative z-[1] flex items-center justify-center px-5 py-3 rounded-[8px] border-2 min-w-[130px] transition-all duration-300 ${
         powering
-          ? "topology-router-core border-warning-border bg-gradient-to-br from-primary/30 via-brand-500 to-brand-500"
-          : "border-primary bg-primary/5 shadow-[var(--shadow-elev)]"
+          ? "topology-router-core border-primary bg-gradient-to-br from-primary/25 via-surface to-primary/10 shadow-lg"
+          : "border-primary/40 bg-surface/90 hover:border-primary shadow-[var(--shadow-elev)]"
       }`}
     >
       <Handle type="source" position={Position.Top} id="top" className="!bg-transparent !border-0 !w-0 !h-0" />
@@ -121,11 +121,11 @@ function RouterNode({ data }) {
         loading="lazy"
         decoding="async"
       />
-      <span className={`text-sm font-bold ${powering ? "topology-router-label text-warning" : "text-primary"}`}>
+      <span className={`text-sm font-bold text-primary ${powering ? "topology-router-label" : ""}`}>
         X Router
       </span>
       {data.activeCount > 0 && (
-        <span className="ml-2 px-1.5 py-0.5 rounded-full bg-warning-solid text-black text-xs font-bold topology-router-badge">
+        <span className="ml-2 px-1.5 py-0.5 rounded-full bg-primary text-white text-xs font-bold topology-router-badge shadow-sm">
           {data.activeCount}
         </span>
       )}
@@ -179,18 +179,18 @@ function TopologyEdge({
       <path
         d={edgePath}
         fill="none"
-        stroke="#22d3ee"
+        stroke="var(--color-primary)"
         strokeWidth={10}
         strokeOpacity={0.35}
         strokeLinecap="round"
         filter={`url(#${filterId})`}
         className="topology-edge-halo"
       />
-      {/* Mid plasma */}
+      {/* Mid plasma - secondary energetic glow */}
       <path
         d={edgePath}
         fill="none"
-        stroke="#4ade80"
+        stroke="color-mix(in srgb, var(--color-primary) 70%, white 30%)"
         strokeWidth={5}
         strokeOpacity={0.85}
         strokeLinecap="round"
@@ -201,17 +201,17 @@ function TopologyEdge({
       <BaseEdge
         id={id}
         path={edgePath}
-        style={{ stroke: "#f8fafc", strokeWidth: 2.2, opacity: 1 }}
+        style={{ stroke: "#ffffff", strokeWidth: 2.2, opacity: 1 }}
         className="topology-edge-kame"
       />
-      {/* Energy orbs */}
+      {/* Energy orbs - three-tiered harmonic composition */}
       {Array.from({ length: KAME_PARTICLE_COUNT }, (_, i) => (
         <circle
           key={`${id}-p-${i}`}
           r={i % 2 === 0 ? 4 : 2.5}
-          fill={i % 3 === 0 ? "#fde047" : i % 3 === 1 ? "#67e8f9" : "#fff"}
+          fill={i % 3 === 0 ? "#ffffff" : i % 3 === 1 ? "var(--color-primary)" : "color-mix(in srgb, var(--color-primary) 60%, white 40%)"}
           opacity={0.95}
-          style={{ filter: "drop-shadow(0 0 4px #22d3ee)" }}
+          style={{ filter: "drop-shadow(0 0 4px var(--color-primary))" }}
         >
           <animateMotion
             dur={`${0.4 + i * 0.08}s`}
@@ -226,7 +226,7 @@ function TopologyEdge({
         <circle
           key={`${id}-s-${i}`}
           r={1.8}
-          fill="#e0f2fe"
+          fill="color-mix(in srgb, var(--color-primary) 35%, #ffffff)"
           opacity={0}
         >
           <animate
@@ -296,10 +296,10 @@ function buildLayout(providers, activeSet, lastSet, errorSet) {
   });
 
   const edgeStyle = (active, last, error) => {
-    if (error) return { stroke: "#ef4444", strokeWidth: 2.5, opacity: 0.9 };
-    if (active) return { stroke: "#22d3ee", strokeWidth: 3.5, opacity: 1 };
-    if (last) return { stroke: "#f59e0b", strokeWidth: 2, opacity: 0.7 };
-    return { stroke: "var(--color-border)", strokeWidth: 1, opacity: 0.3 };
+    if (error) return { stroke: "var(--color-danger)", strokeWidth: 2.5, opacity: 0.95 };
+    if (active) return { stroke: "var(--color-primary)", strokeWidth: 3.5, opacity: 1 };
+    if (last) return { stroke: "var(--color-warning)", strokeWidth: 2, opacity: 0.8 };
+    return { stroke: "var(--color-border)", strokeWidth: 1.2, opacity: 0.35 };
   };
 
   providers.forEach((p, i) => {
