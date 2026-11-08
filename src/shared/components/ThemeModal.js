@@ -567,9 +567,11 @@ export default function ThemeModal({ isOpen, onClose }) {
   const theme = useThemeStore((state) => state.theme);
   const accent = useThemeStore((state) => state.accent || "orange");
   const customColor = useThemeStore((state) => state.customColor || "#E56A4A");
+  const monochromeIcons = useThemeStore((state) => state.monochromeIcons || false);
   const setTheme = useThemeStore((state) => state.setTheme);
   const setAccent = useThemeStore((state) => state.setAccent);
   const setCustomColor = useThemeStore((state) => state.setCustomColor);
+  const setMonochromeIcons = useThemeStore((state) => state.setMonochromeIcons);
   const modalRef = useRef(null);
   const [mounted, setMounted] = useState(false);
 
@@ -693,6 +695,36 @@ export default function ThemeModal({ isOpen, onClose }) {
               onApply={() => setAccent("custom")}
               isActive={accent === "custom"}
             />
+          </div>
+
+          {/* Toggle: Monochrome Provider Icons matching theme */}
+          <div className="mt-3 pt-3 border-t border-border-subtle flex items-center justify-between p-2.5 rounded-[6px] border border-border-subtle bg-surface-2/40 hover:bg-surface-2/70 transition-colors">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-semibold text-text-main flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px] text-primary">filter_b_and_w</span>
+                Monochrome Provider Icons
+              </span>
+              <span className="text-[11px] text-text-muted">
+                Unify provider logos to monochrome shades matching the active theme
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={monochromeIcons}
+              onClick={() => setMonochromeIcons(!monochromeIcons)}
+              className={cn(
+                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                monochromeIcons ? "bg-primary" : "bg-border"
+              )}
+            >
+              <span
+                className={cn(
+                  "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
+                  monochromeIcons ? "translate-x-4" : "translate-x-0"
+                )}
+              />
+            </button>
           </div>
 
           <TopologyBackdropPicker />

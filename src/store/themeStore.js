@@ -57,6 +57,8 @@ const useThemeStore = create(
       topologyBg: null,
       // Dim intensity 0-100 (0 = off). Legacy boolean values map on read.
       topologyBgDim: 0,
+      // Monochrome provider icons option (matches active theme accent)
+      monochromeIcons: false,
 
       setTopologyBg: (value) => {
         set({ topologyBg: value });
@@ -65,6 +67,12 @@ const useThemeStore = create(
       setTopologyBgDim: (dim) => {
         const n = Math.max(0, Math.min(100, Math.round(Number(dim) || 0)));
         set({ topologyBgDim: n });
+        syncThemeToServer(get());
+      },
+      setMonochromeIcons: (val) => {
+        const enabled = Boolean(val);
+        set({ monochromeIcons: enabled });
+        applyMonochromeIcons(enabled);
         syncThemeToServer(get());
       },
 
@@ -102,6 +110,7 @@ const useThemeStore = create(
       initTheme: async () => {
         // Apply current client store immediately
         applyTheme(get().theme || "ember", get().accent || "orange", get().customColor || "#E56A4A");
+        applyMonochromeIcons(Boolean(get().monochromeIcons));
 
         // Sync with global theme from server so public portals and new devices inherit instance theme
         try {
@@ -117,8 +126,10 @@ const useThemeStore = create(
                   customColor: data.customColor || get().customColor,
                   topologyBg: data.topologyBg !== undefined ? data.topologyBg : get().topologyBg,
                   topologyBgDim: data.topologyBgDim !== undefined ? Number(data.topologyBgDim) || 0 : get().topologyBgDim,
+                  monochromeIcons: data.monochromeIcons !== undefined ? Boolean(data.monochromeIcons) : Boolean(get().monochromeIcons),
                 });
                 applyTheme(data.theme || get().theme, data.accent || get().accent, data.customColor || get().customColor);
+                applyMonochromeIcons(Boolean(data.monochromeIcons !== undefined ? data.monochromeIcons : get().monochromeIcons));
               }
             }
           }
@@ -142,6 +153,7 @@ function syncThemeToServer(stateOrTheme, accent, customColor) {
       customColor: stateOrTheme.customColor,
       topologyBg: stateOrTheme.topologyBg,
       topologyBgDim: stateOrTheme.topologyBgDim,
+      monochromeIcons: stateOrTheme.monochromeIcons,
     };
   } else {
     body = { theme: stateOrTheme, accent, customColor };
@@ -151,6 +163,12 @@ function syncThemeToServer(stateOrTheme, accent, customColor) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   }).catch(() => {});
+}
+
+// Toggle monochrome class on root document
+export function applyMonochromeIcons(enabled) {
+  if (typeof window === "undefined") return;
+  document.documentElement.classList.toggle("monochrome-provider-icons", Boolean(enabled));
 }
 
 // Backdrop values arrive from localStorage, so the component validates them

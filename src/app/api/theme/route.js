@@ -15,6 +15,7 @@ export async function GET() {
         customColor: "#E56A4A",
         topologyBg: null,
         topologyBgDim: 0,
+        monochromeIcons: false,
       });
     }
     const parsed = JSON.parse(raw);
@@ -25,6 +26,7 @@ export async function GET() {
       customColor: "#E56A4A",
       topologyBg: null,
       topologyBgDim: 0,
+      monochromeIcons: false,
       ...parsed,
     });
   } catch (e) {
@@ -35,6 +37,7 @@ export async function GET() {
       customColor: "#E56A4A",
       topologyBg: null,
       topologyBgDim: 0,
+      monochromeIcons: false,
     });
   }
 }
@@ -51,8 +54,9 @@ export async function POST(request) {
     const customColor = body.customColor !== undefined ? body.customColor : current.customColor || "#E56A4A";
     const topologyBg = body.topologyBg !== undefined ? body.topologyBg : (current.topologyBg || null);
     const topologyBgDim = body.topologyBgDim !== undefined ? Number(body.topologyBgDim) : (current.topologyBgDim || 0);
+    const monochromeIcons = body.monochromeIcons !== undefined ? Boolean(body.monochromeIcons) : Boolean(current.monochromeIcons);
 
-    const payload = { theme, accent, customColor, topologyBg, topologyBgDim };
+    const payload = { theme, accent, customColor, topologyBg, topologyBgDim, monochromeIcons };
     await setMeta("global_theme_settings", JSON.stringify(payload));
     return NextResponse.json({ ok: true, ...payload });
   } catch (e) {

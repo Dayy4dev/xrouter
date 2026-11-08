@@ -689,20 +689,35 @@ button:disabled,
   animation: topology-edge-dash 0.18s linear infinite, topology-edge-flicker 0.22s steps(3) infinite;
 }
 
-/* React Flow controls: match app theme */
+/* React Flow controls: match app theme with glass backdrop */
 .react-flow-controls-custom {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
   border-radius: 10px;
   box-shadow: var(--shadow-soft);
   overflow: hidden;
 }
 
 .react-flow-controls-custom button {
-  background: var(--color-surface);
+  background: transparent;
   color: var(--color-text-main);
   border: 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+}
+
+.react-flow-controls-custom button:hover {
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+}
+
+/* Global Monochrome Provider Icons toggle */
+.monochrome-provider-icons img[src*="/providers/"] {
+  filter: grayscale(100%) contrast(120%) brightness(105%) opacity(0.85);
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+.monochrome-provider-icons img[src*="/providers/"]:hover {
+  filter: grayscale(30%) contrast(110%) opacity(1);
 }
 
 .react-flow-controls-custom button:last-child {

@@ -11,6 +11,7 @@ import {
   getBezierPath,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { cn } from "@/shared/utils/cn";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/providerIcon";
 import { isCustomLogo } from "@/shared/utils/providerLogo";
@@ -33,17 +34,20 @@ function getProviderImageUrl(providerId) {
   return getProviderIconSrc(providerId);
 }
 
-// Custom provider node - rectangle with image + name
+// Custom provider node - rectangle with image + name (semi-transparent glass card)
 function ProviderNode({ data }) {
   const { label, color, imageUrl, textIcon, active } = data;
+  const monochromeIcons = useThemeStore((state) => state.monochromeIcons);
   const [imgError, setImgError] = useState(false);
   return (
     <div
-      className="flex items-center gap-2.5 px-4 py-2.5 rounded-lg border-2 transition-all duration-300 bg-bg"
+      className="flex items-center gap-2.5 px-3.5 py-2 rounded-lg border-2 transition-all duration-300 bg-surface/40 hover:bg-surface/65 backdrop-blur-md"
       style={{
-        borderColor: active ? color : "var(--color-border)",
-        boxShadow: active ? `0 0 16px ${color}40` : "none",
-        minWidth: "150px",
+        borderColor: active ? "var(--color-primary)" : "color-mix(in srgb, var(--color-border) 60%, transparent)",
+        boxShadow: active
+          ? "0 0 16px color-mix(in srgb, var(--color-primary) 40%, transparent)"
+          : "0 2px 8px rgba(0,0,0,0.12)",
+        minWidth: "145px",
       }}
     >
       <Handle type="target" position={Position.Top} id="top" className="!bg-transparent !border-0 !w-0 !h-0" />
@@ -53,14 +57,21 @@ function ProviderNode({ data }) {
 
       {/* Provider icon */}
       <div
-        className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
-        style={{ backgroundColor: `${color}15` }}
+        className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 backdrop-blur-xs transition-colors"
+        style={{
+          backgroundColor: monochromeIcons
+            ? "color-mix(in srgb, var(--color-primary) 15%, transparent)"
+            : `${color}15`,
+        }}
       >
         {imageUrl && !imgError ? (
           <img
             src={imageUrl}
             alt={label}
-            className="w-6 h-6 rounded-sm object-contain"
+            className={cn(
+              "w-6 h-6 rounded-sm object-contain transition-all",
+              monochromeIcons && "grayscale contrast-125 brightness-110 opacity-85"
+            )}
             loading="lazy"
             decoding="async"
             onError={() => {
@@ -70,14 +81,19 @@ function ProviderNode({ data }) {
             }}
           />
         ) : (
-          <span className="text-sm font-bold" style={{ color }}>{textIcon}</span>
+          <span
+            className="text-sm font-bold"
+            style={{ color: monochromeIcons ? "var(--color-primary)" : color }}
+          >
+            {textIcon}
+          </span>
         )}
       </div>
 
       {/* Provider name */}
       <span
         className="text-base font-medium truncate"
-        style={{ color: active ? color : "var(--color-text)" }}
+        style={{ color: active ? "var(--color-primary)" : "var(--color-text)" }}
       >
         {label}
       </span>
@@ -85,8 +101,14 @@ function ProviderNode({ data }) {
       {/* Active indicator */}
       {active && (
         <span className="relative flex h-2 w-2 shrink-0">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: color }} />
-          <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: color }} />
+          <span
+            className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+            style={{ backgroundColor: "var(--color-primary)" }}
+          />
+          <span
+            className="relative inline-flex rounded-full h-2 w-2"
+            style={{ backgroundColor: "var(--color-primary)" }}
+          />
         </span>
       )}
     </div>
@@ -97,15 +119,15 @@ ProviderNode.propTypes = {
   data: PropTypes.object.isRequired,
 };
 
-// Center X Router node — pulse/glow on card only (no expanding rings)
+// Center X Router node — pulse/glow on semi-transparent glass card
 function RouterNode({ data }) {
   const powering = (data.activeCount || 0) > 0;
   return (
     <div
       className={`relative z-[1] flex items-center justify-center px-5 py-3 rounded-[8px] border-2 min-w-[130px] transition-all duration-300 ${
         powering
-          ? "topology-router-core border-primary bg-gradient-to-br from-primary/25 via-surface to-primary/10 shadow-lg"
-          : "border-primary/40 bg-surface/90 hover:border-primary shadow-[var(--shadow-elev)]"
+          ? "topology-router-core border-primary bg-gradient-to-br from-primary/30 via-surface/50 to-primary/15 backdrop-blur-md shadow-lg"
+          : "border-primary/50 bg-surface/40 hover:bg-surface/65 backdrop-blur-md shadow-[var(--shadow-elev)]"
       }`}
     >
       <Handle type="source" position={Position.Top} id="top" className="!bg-transparent !border-0 !w-0 !h-0" />
@@ -298,7 +320,7 @@ function buildLayout(providers, activeSet, lastSet, errorSet) {
   const edgeStyle = (active, last, error) => {
     if (error) return { stroke: "var(--color-danger)", strokeWidth: 2.5, opacity: 0.95 };
     if (active) return { stroke: "var(--color-primary)", strokeWidth: 3.5, opacity: 1 };
-    if (last) return { stroke: "var(--color-warning)", strokeWidth: 2, opacity: 0.8 };
+    if (last) return { stroke: "color-mix(in srgb, var(--color-primary) 65%, transparent)", strokeWidth: 2, opacity: 0.75, strokeDasharray: "5 4" };
     return { stroke: "var(--color-border)", strokeWidth: 1.2, opacity: 0.35 };
   };
 
