@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   validateApiKey: vi.fn(),
   getConsistentMachineId: vi.fn(),
   verifyDashboardAuthToken: vi.fn(),
+  getDashboardAuthSession: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({
@@ -31,6 +32,7 @@ vi.mock("@/shared/utils/machineId", () => ({
 
 vi.mock("@/lib/auth/dashboardSession", () => ({
   verifyDashboardAuthToken: mocks.verifyDashboardAuthToken,
+  getDashboardAuthSession: mocks.getDashboardAuthSession,
 }));
 
 const { proxy, __test__ } = await import("../../src/dashboardGuard.js");
@@ -304,5 +306,35 @@ describe("dashboard guard helpers", () => {
     });
 
     expect(__test__.extractApiKey(apiRequest)).toBe("header-key");
+  });
+});
+
+describe("dashboard guard redirect target", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.NINEROUTER_PEER_TOKEN = PEER_TOKEN;
+    mocks.getSettings.mockResolvedValue({ requireLogin: true });
+    mocks.validateApiKey.mockResolvedValue(false);
+    mocks.getConsistentMachineId.mockResolvedValue("cli-token");
+    mocks.verifyDashboardAuthToken.mockResolvedValue(false);
+    delete process.env.PUBLIC_BASE_URL;
+    delete process.env.BASE_URL;
+    delete process.env.NEXT_PUBLIC_BASE_URL;
+  });
+
+  it("keeps the loopback service port so local redirects do not fall to port 80", async () => {
+    const response = await proxy(localRequest("/", { host: "localhost:20128" }));
+
+    expect(response.status).toBe(307);
+    expect(response.url.port).toBe("20128");
+    expect(response.url.href).toBe("http://localhost:20128/dashboard");
+  });
+
+  it("still strips internal ports from a public host", async () => {
+    const response = await proxy(request("/dashboard", { host: "router.example.com:20128" }));
+
+    expect(response.status).toBe(307);
+    expect(response.url.port).toBe("");
+    expect(response.url.href).toBe("http://router.example.com/login");
   });
 });

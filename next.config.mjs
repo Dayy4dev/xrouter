@@ -31,6 +31,23 @@ const tracingRoot = process.env.NEXT_TRACING_ROOT_MODE === "workspace"
   : projectRoot;
 const proxyClientMaxBodySize = process.env.NINEROUTER_PROXY_CLIENT_MAX_BODY_SIZE || "128mb";
 
+// This config has to load under several Next majors. Keys that moved out of
+// `experimental` in 15 (outputFileTracingRoot/Excludes, serverExternalPackages,
+// turbopack) and keys added in 15.1+ (serverComponentsHmrCache,
+// proxyClientMaxBodySize) are rejected by 14's schema. That is only a warning —
+// except for outputFileTracingRoot, where the ignored value makes Next fall back
+// to findRootDir() and trace outside the project. So emit only the shape the
+// installed major actually understands.
+function installedNextMajor() {
+  try {
+    const pkg = JSON.parse(readFileSync(join(projectRoot, "node_modules", "next", "package.json"), "utf8"));
+    return Number.parseInt(pkg.version, 10) || 14;
+  } catch {
+    return 14;
+  }
+}
+const next15Plus = installedNextMajor() >= 15;
+
 const externalPkgs = ["better-sqlite3", "sql.js", "node:sqlite", "bun:sqlite", "open", "wreq-js"];
 const tracingExcludes = {
   "*": [
@@ -50,23 +67,35 @@ const nextConfig = {
   poweredByHeader: false,
   distDir: process.env.NEXT_DIST_DIR || ".next",
   output: "standalone",
-  // Top-level keys for Next.js 15 / 16
-  outputFileTracingRoot: tracingRoot,
-  outputFileTracingExcludes: tracingExcludes,
-  serverExternalPackages: externalPkgs,
-  turbopack: {
-    root: tracingRoot
-  },
+  // Next.js >= 15 shape.
+  ...(next15Plus && {
+    outputFileTracingRoot: tracingRoot,
+    outputFileTracingExcludes: tracingExcludes,
+    serverExternalPackages: externalPkgs,
+    turbopack: {
+      root: tracingRoot
+    },
+  }),
   images: {
     unoptimized: true
   },
   env: stampBuild(),
   experimental: {
-    serverComponentsExternalPackages: externalPkgs,
-    // #1529/#1572: LLM clients can send long context or base64 image payloads through /v1 rewrites.
-    proxyClientMaxBodySize,
-    // Cache fetch responses across HMR refreshes for faster dev reloads.
-    serverComponentsHmrCache: true,
+    // Next.js <= 14 shape: these all live under `experimental` (14's turbo
+    // schema has no `root`, and `next build` uses webpack anyway).
+    ...(!next15Plus && {
+      outputFileTracingRoot: tracingRoot,
+      outputFileTracingExcludes: tracingExcludes,
+      serverComponentsExternalPackages: externalPkgs,
+    }),
+    // 15.1+ only. On 14 there is no rewrite body cap to raise and no HMR
+    // fetch cache to toggle, so omitting them changes no behaviour.
+    ...(next15Plus && {
+      // #1529/#1572: LLM clients can send long context or base64 image payloads through /v1 rewrites.
+      proxyClientMaxBodySize,
+      // Cache fetch responses across HMR refreshes for faster dev reloads.
+      serverComponentsHmrCache: true,
+    }),
     // Tree-shake heavy barrel imports to cut compile + bundle size
     optimizePackageImports: ["@xyflow/react", "@dnd-kit/core", "@dnd-kit/sortable", "material-symbols", "marked"],
   },

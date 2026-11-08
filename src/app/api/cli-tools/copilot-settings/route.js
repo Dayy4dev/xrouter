@@ -4,10 +4,11 @@ import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import { userHome } from "@/lib/paths/home";
 
 // Resolve chatLanguageModels.json path per OS
 const getConfigPath = () => {
-  const home = os.homedir();
+  const home = userHome();
   const platform = os.platform();
   if (platform === "win32") {
     return path.join(process.env.APPDATA || home, "Code", "User", "chatLanguageModels.json");

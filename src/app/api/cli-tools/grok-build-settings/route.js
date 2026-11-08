@@ -13,10 +13,11 @@ import {
   parseGrokBuildConfig,
   resetGrokBuildConfig,
 } from "@/lib/grokBuildConfig";
+import { userHome } from "@/lib/paths/home";
 
 const execAsync = promisify(exec);
 
-const getGrokDir = () => path.join(os.homedir(), ".grok");
+const getGrokDir = () => path.join(userHome(), ".grok");
 const getGrokConfigPath = () => path.join(getGrokDir(), "config.toml");
 const getGrokBinPath = () => path.join(getGrokDir(), "bin", "grok");
 

@@ -7,14 +7,15 @@ import os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { parseTOML, stringifyTOML } from "confbox";
+import { userHome } from "@/lib/paths/home";
 
 const execAsync = promisify(exec);
 
-const getJcodeConfigDir = () => path.join(os.homedir(), ".jcode");
+const getJcodeConfigDir = () => path.join(userHome(), ".jcode");
 const getConfigPath = () => path.join(getJcodeConfigDir(), "config.toml");
 
 const getProviderEnvPath = () => {
-  const configDir = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+  const configDir = process.env.XDG_CONFIG_HOME || path.join(userHome(), ".config");
   return path.join(configDir, "jcode", "provider-xrouter.env");
 };
 
@@ -164,7 +165,7 @@ export async function POST(request) {
 
     await writeConfig(config);
 
-    const xdgConfigDir = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+    const xdgConfigDir = process.env.XDG_CONFIG_HOME || path.join(userHome(), ".config");
     const jcodeConfigDir = path.join(xdgConfigDir, "jcode");
     await fs.mkdir(jcodeConfigDir, { recursive: true });
 

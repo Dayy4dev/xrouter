@@ -1,3 +1,6 @@
+// Home dir kept behind an env lookup so @vercel/nft cannot constant-fold it
+// and try to bundle the whole user profile (EPERM on Windows junctions).
+const userHome = () => process.env.HOME || process.env.USERPROFILE || os.homedir();
 const { exec, spawn, execSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
@@ -622,7 +625,7 @@ async function startServer(apiKey, sudoPassword, forceKillPort443 = false) {
     // Pass HOME explicitly so os.homedir() resolves to the unprivileged user's home
     // instead of /root when sudo resets the environment.
     const inlineCmd = [
-      `HOME=${shellQuoteSingle(os.homedir())}`,
+      `HOME=${shellQuoteSingle(userHome())}`,
       `ROUTER_API_KEY=${shellQuoteSingle(apiKey)}`,
       `MITM_ROUTER_BASE=${shellQuoteSingle(mitmRouterBase)}`,
       "NODE_ENV=production",

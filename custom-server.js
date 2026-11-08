@@ -15,6 +15,32 @@ if (typeof globalThis !== "undefined") {
 
 const origCreate = http.createServer.bind(http);
 
+// --- Module resolution hooks, installed before ANY src/ module is imported ---
+// src/* imports its own files as "@/lib/...", which only webpack understands.
+// Node needs scripts/auth-guard-hooks.mjs to map that alias, and the hooks must
+// be live before the FIRST import of src/ — not just before the auth guard's.
+// Whoever imports src/ first wins the shared module job, and a job that failed
+// to resolve stays poisoned for the life of the process: the IP-jail check used
+// to fire `import(src/lib/security/ipJail.js)` a few microseconds before the
+// guard registered the hooks, ipJail -> @/lib/dataDir failed, and every later
+// import of the guard graph replayed that ERR_MODULE_NOT_FOUND. The guard then
+// reported itself unavailable and answered 503 to every request, forever.
+let moduleHooksInstalled = false;
+function installModuleHooks() {
+  if (moduleHooksInstalled) return true;
+  try {
+    const hooksPath = path.join(__dirname, "scripts", "auth-guard-hooks.mjs");
+    if (!fs.existsSync(hooksPath)) return false;
+    require("node:module").register(pathToFileURL(hooksPath).href);
+    moduleHooksInstalled = true;
+    return true;
+  } catch (error) {
+    console.error("[ModuleHooks] install failed:", error && (error.message || error));
+    return false;
+  }
+}
+installModuleHooks();
+
 // Per-process secret proving x-9r-real-ip was stamped below rather than sent by the client.
 // A bare `next start` / `next dev` never loads this file, so it cannot produce a matching
 // header even though the env var is inherited by child processes. Named like x-9r-cli-token
@@ -203,10 +229,9 @@ let guardModulePromise = null;
 function getGuardModule() {
   if (!guardModulePromise) {
     guardModulePromise = (async () => {
-      const hooksPath = path.join(__dirname, "scripts", "auth-guard-hooks.mjs");
       const guardPath = path.join(__dirname, "src", "dashboardGuard.js");
-      if (!fs.existsSync(hooksPath) || !fs.existsSync(guardPath)) return null;
-      require("node:module").register(pathToFileURL(hooksPath).href);
+      if (!fs.existsSync(guardPath)) return null;
+      if (!moduleHooksInstalled && !installModuleHooks()) return null;
       return await import(pathToFileURL(guardPath).href);
     })().catch((error) => {
       console.error("[AuthGuard] load failed:", error && (error.stack || error.message));
@@ -476,6 +501,13 @@ try {
 } catch {}
 
 if (require.main === module) {
+  // Windows defines HOSTNAME = machine name, and Next's standalone server uses
+  // process.env.HOSTNAME as its bind address -> the server ends up listening on
+  // one arbitrary interface only (localhost/other IPs get ECONNREFUSED).
+  // Only honour HOSTNAME when it is an explicit address, otherwise bind all.
+  if (!/^\d{1,3}(\.\d{1,3}){3}$|^\[?[0-9a-fA-F:]+\]?$/.test(String(process.env.HOSTNAME || ""))) {
+    process.env.HOSTNAME = "0.0.0.0";
+  }
   // If .next/standalone/server.js exists, prefer it directly so Next.js standalone output works properly
   const standaloneDirect = path.join(__dirname, "server.js");
   const standaloneDist = path.join(__dirname, ".next", "standalone", "server.js");

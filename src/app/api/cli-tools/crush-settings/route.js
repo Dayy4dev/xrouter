@@ -6,11 +6,12 @@ import path from "path";
 import os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { userHome } from "@/lib/paths/home";
 
 const execAsync = promisify(exec);
 
 const getCrushConfigPath = () => {
-  const configDir = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+  const configDir = process.env.XDG_CONFIG_HOME || path.join(userHome(), ".config");
   return path.join(configDir, "crush", "crush.json");
 };
 

@@ -6,10 +6,11 @@ import path from "path";
 import os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { userHome } from "@/lib/paths/home";
 
 const execAsync = promisify(exec);
 
-const getSmeltConfigPath = () => path.join(os.homedir(), ".smelt", "config.json");
+const getSmeltConfigPath = () => path.join(userHome(), ".smelt", "config.json");
 const getSmeltDir = () => path.dirname(getSmeltConfigPath());
 
 const checkSmeltInstalled = async () => {

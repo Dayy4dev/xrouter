@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { readFile, access, constants } from "fs/promises";
-import { homedir } from "os";
 import { join } from "path";
 import { readDesktopPassToken } from "open-sse/shared/mimoAccount.js";
+import { userHome } from "@/lib/paths/home";
 
 /**
  * GET /api/oauth/xiaomi-mimo/auto-import
@@ -23,7 +23,7 @@ import { readDesktopPassToken } from "open-sse/shared/mimoAccount.js";
  */
 
 function getCandidatePaths() {
-  const home = homedir();
+  const home = userHome();
   const paths = [];
 
   // MiMoCode / MiMo Desktop shared data dir (cross-platform XDG)

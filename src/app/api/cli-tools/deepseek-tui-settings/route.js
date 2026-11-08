@@ -6,12 +6,13 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import { userHome } from "@/lib/paths/home";
 
 const execAsync = promisify(exec);
 
 const PROVIDER_NAME = "xrouter";
 
-const getDeepSeekDir = () => path.join(os.homedir(), ".deepseek");
+const getDeepSeekDir = () => path.join(userHome(), ".deepseek");
 const getDeepSeekConfigPath = () => path.join(getDeepSeekDir(), "config.toml");
 
 // Simple TOML parser for key = "value" and [section] patterns

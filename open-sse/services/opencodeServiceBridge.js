@@ -33,8 +33,9 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { dbg } from "../utils/debugLog.js";
+import { userHome } from "@/lib/paths/home";
 
-const DEFAULT_STATE_PATH = path.join(os.homedir(), ".local", "state", "opencode", "service.json");
+const DEFAULT_STATE_PATH = path.join(userHome(), ".local", "state", "opencode", "service.json");
 
 // Cache of on-demand daemon processes per proxy URL
 const proxyDaemonPool = new Map();
@@ -200,7 +201,7 @@ function resolveOpencodeBin() {
   }
   const candidates = [
     "/usr/local/bin/opencode",
-    path.join(os.homedir(), ".opencode", "bin", "opencode"),
+    path.join(userHome(), ".opencode", "bin", "opencode"),
     "/usr/bin/opencode",
   ];
   for (const c of candidates) {
@@ -1453,7 +1454,7 @@ export function resolveClientWorkingDirectory(credentials, body, messages = []) 
     }
   }
 
-  return process.cwd() || os.homedir();
+  return process.cwd() || userHome();
 }
 
 function resolveServiceSessionKey(credentials, model, messages, directory = "") {
@@ -1635,7 +1636,7 @@ async function executeServiceStreamOnce({ model, messages, tools = [], toolChoic
   };
 
   const cleanModel = String(model || "big-pickle").replace(/^oc\//, "").replace(/\([^()]+\)\s*$/, "").trim();
-  const dir = process.cwd() || os.homedir();
+  const dir = process.cwd() || userHome();
 
   // 1. Resolve or create a persistent session on the local daemon
   const sessionCacheKey = resolveDaemonSessionKey(credentials, cleanModel);

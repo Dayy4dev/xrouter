@@ -6,11 +6,12 @@ import path from "path";
 import os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { userHome } from "@/lib/paths/home";
 
 const execAsync = promisify(exec);
 
 const getPiModelsJsonPath = () => {
-  const agentPath = path.join(os.homedir(), ".pi", "agent", "models.json");
+  const agentPath = path.join(userHome(), ".pi", "agent", "models.json");
   return agentPath;
 };
 
@@ -28,7 +29,7 @@ const checkPiInstalled = async () => {
       return true;
     } catch {
       try {
-        await fs.access(path.join(os.homedir(), ".pi", "models.json"));
+        await fs.access(path.join(userHome(), ".pi", "models.json"));
         return true;
       } catch {
         return false;
@@ -48,8 +49,8 @@ const hasXRouterConfig = (settings) => {
 };
 
 const resolveModelsJsonPath = async () => {
-  const agentPath = path.join(os.homedir(), ".pi", "agent", "models.json");
-  const rootPath = path.join(os.homedir(), ".pi", "models.json");
+  const agentPath = path.join(userHome(), ".pi", "agent", "models.json");
+  const rootPath = path.join(userHome(), ".pi", "models.json");
   try {
     await fs.access(agentPath);
     return agentPath;

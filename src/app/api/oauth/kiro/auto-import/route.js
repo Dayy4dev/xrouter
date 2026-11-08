@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { readFile, readdir } from "fs/promises";
-import { homedir } from "os";
 import { join } from "path";
+import { userHome } from "@/lib/paths/home";
 
 /**
  * GET /api/oauth/kiro/auto-import
@@ -11,7 +11,7 @@ import { join } from "path";
  */
 export async function GET() {
   try {
-    const cachePath = join(homedir(), ".aws/sso/cache");
+    const cachePath = join(userHome(), ".aws/sso/cache");
 
     let files;
     try {
@@ -95,8 +95,8 @@ export async function GET() {
     // of the IDC region, so we normalize the region in the ARN to us-east-1.
     let profileArn = null;
     const kiroProfilePaths = [
-      join(process.env.APPDATA || join(homedir(), "AppData", "Roaming"), "Kiro", "User", "globalStorage", "kiro.kiroagent", "profile.json"),
-      join(homedir(), ".config", "Kiro", "User", "globalStorage", "kiro.kiroagent", "profile.json"),
+      join(process.env.APPDATA || join(userHome(), "AppData", "Roaming"), "Kiro", "User", "globalStorage", "kiro.kiroagent", "profile.json"),
+      join(userHome(), ".config", "Kiro", "User", "globalStorage", "kiro.kiroagent", "profile.json"),
     ];
     for (const profilePath of kiroProfilePaths) {
       try {

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
-import os from "os";
+import { userHome } from "@/lib/paths/home";
 
 export const dynamic = "force-dynamic";
 
-const getCodexDir = () => path.join(os.homedir(), ".codex");
+const getCodexDir = () => path.join(userHome(), ".codex");
 
 const isValidProfileName = (name) => {
   return typeof name === "string" && /^[a-zA-Z0-9_-]+$/.test(name) && name.length <= 64 && name.toLowerCase() !== "config";

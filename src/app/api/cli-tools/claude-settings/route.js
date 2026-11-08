@@ -7,6 +7,7 @@ import fs from "fs/promises";
 import path from "path";
 import os from "os";
 import { DEFAULT_PLUGINS } from "@/shared/constants/coworkPlugins";
+import { userHome } from "@/lib/paths/home";
 
 const execAsync = promisify(exec);
 
@@ -19,12 +20,12 @@ const buildExaMcpEntry = () => ({
 
 // Get claude settings path based on OS
 const getClaudeSettingsPath = () => {
-  const homeDir = os.homedir();
+  const homeDir = userHome();
   return path.join(homeDir, ".claude", "settings.json");
 };
 
 // Claude Code CLI reads mcpServers from ~/.claude.json (NOT settings.json).
-const getClaudeJsonPath = () => path.join(os.homedir(), ".claude.json");
+const getClaudeJsonPath = () => path.join(userHome(), ".claude.json");
 
 const readClaudeJson = async () => {
   try {

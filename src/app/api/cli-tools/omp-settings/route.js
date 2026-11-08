@@ -6,11 +6,12 @@ import path from "path";
 import os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { userHome } from "@/lib/paths/home";
 
 const execAsync = promisify(exec);
 
 const PROVIDER_ID = "xrouter";
-const getOmpDir = () => path.join(os.homedir(), ".omp", "agent");
+const getOmpDir = () => path.join(userHome(), ".omp", "agent");
 const getOmpDbPath = () => path.join(getOmpDir(), "agent.db");
 const getOmpModelsYmlPath = () => path.join(getOmpDir(), "models.yml");
 

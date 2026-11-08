@@ -1,9 +1,9 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { access, constants, readFile } from "fs/promises";
-import { homedir } from "os";
 import { join } from "path";
 import { randomUUID } from "crypto";
+import { userHome } from "@/lib/paths/home";
 
 const execFileAsync = promisify(execFile);
 
@@ -34,7 +34,7 @@ export async function resolveZedCredentialsUrl() {
 }
 
 function getZedSettingsPaths() {
-  const home = homedir();
+  const home = userHome();
   if (process.platform === "darwin") {
     return [join(home, "Library/Application Support/Zed/settings.json")];
   }
@@ -48,7 +48,7 @@ function getZedSettingsPaths() {
 
 /** Candidate paths for Zed's global kv_store (holds system_id). */
 export function getZedGlobalDbPaths() {
-  const home = homedir();
+  const home = userHome();
   const channels = ["0-global", "0-stable", "0-preview"];
   if (process.platform === "darwin") {
     const base = join(home, "Library/Application Support/Zed/db");

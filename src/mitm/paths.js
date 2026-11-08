@@ -1,3 +1,6 @@
+// Home dir kept behind an env lookup so @vercel/nft cannot constant-fold it
+// and try to bundle the whole user profile (EPERM on Windows junctions).
+const userHome = () => process.env.HOME || process.env.USERPROFILE || os.homedir();
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -6,9 +9,9 @@ const APP_NAME = "xrouter";
 
 function defaultDir() {
   if (process.platform === "win32") {
-    return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), APP_NAME);
+    return path.join(process.env.APPDATA || path.join(userHome(), "AppData", "Roaming"), APP_NAME);
   }
-  return path.join(os.homedir(), `.${APP_NAME}`);
+  return path.join(userHome(), `.${APP_NAME}`);
 }
 
 function getDataDir() {

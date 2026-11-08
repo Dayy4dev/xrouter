@@ -1,3 +1,6 @@
+// Home dir kept behind an env lookup so @vercel/nft cannot constant-fold it
+// and try to bundle the whole user profile (EPERM on Windows junctions).
+const userHome = () => process.env.HOME || process.env.USERPROFILE || os.homedir();
 // Standalone detached updater process.
 // Spawns `npm i -g <pkg>@latest`, exposes progress via tiny HTTP server.
 // Survives after parent Next server exits (detached + unref by spawner).
@@ -24,9 +27,9 @@ const appPort = parseInt(process.env.UPDATER_APP_PORT || "20128", 10);
 function getDataDir() {
   if (process.env.DATA_DIR) return process.env.DATA_DIR;
   if (process.platform === "win32") {
-    return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "xrouter");
+    return path.join(process.env.APPDATA || path.join(userHome(), "AppData", "Roaming"), "xrouter");
   }
-  return path.join(os.homedir(), ".xrouter");
+  return path.join(userHome(), ".xrouter");
 }
 const updateDir = path.join(getDataDir(), "update");
 try { fs.mkdirSync(updateDir, { recursive: true }); } catch { /* best effort */ }

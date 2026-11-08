@@ -4,11 +4,11 @@ import { BaseExecutor } from "./base.js";
 import { PROVIDERS } from "../config/providers.js";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
 import { getRecipe } from "../recipe/adcodeRecipe.js";
-import os from "node:os";
+import { userHome } from "@/lib/paths/home";
 
 // Same resolution order as src/lib/dataDir.js, inlined so the executor also
 // loads outside the Next bundler (CLI smoke tests, worker processes).
-const DATA_DIR = process.env.DATA_DIR || path.join(os.homedir(), ".xrouter");
+const DATA_DIR = process.env.DATA_DIR || path.join(userHome(), ".xrouter");
 
 /**
  * ADCode / Tagflow executor — bring-your-own-account.

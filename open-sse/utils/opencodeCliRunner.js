@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import os from "os";
 import { spawn, execSync } from "child_process";
 import {
   hasTools,
@@ -8,6 +7,7 @@ import {
   parseToolCallReply,
   generateToolCallId,
 } from "../executors/deepseekWebToolBridge.js";
+import { userHome } from "@/lib/paths/home";
 const binaryVersionCache = new Map();
 const deadProxyUrls = new Set();
 let cachedResolvedBinary = null;
@@ -130,7 +130,7 @@ export function findOpencodeBinary(forceRefresh = false) {
   }
 
   const isWin = process.platform === "win32";
-  const homeDir = os.homedir() || process.env.USERPROFILE || process.env.HOME || "";
+  const homeDir = userHome() || process.env.USERPROFILE || process.env.HOME || "";
   // 1. Explicit environment variable override
   if (process.env.OPENCODE_BIN) {
     try {
@@ -396,7 +396,7 @@ export async function executeOpencodeCli({
   } else {
     // Linux / macOS / Docker container fallback where HOME is '/' or unset
     if (!env.HOME || env.HOME === "/") {
-      env.HOME = process.env.DATA_DIR || os.homedir() || "/tmp/opencode-home";
+      env.HOME = process.env.DATA_DIR || userHome() || "/tmp/opencode-home";
     }
     try {
       if (env.HOME && !fs.existsSync(env.HOME)) {

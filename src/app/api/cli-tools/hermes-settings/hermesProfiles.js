@@ -9,14 +9,14 @@
 // no shell interpolation surface at all.
 import fs from "fs/promises";
 import path from "path";
-import os from "os";
 import { parseModelBlock, parseDelegationBlock, parseAuxRoles, has9RouterConfig } from "./hermesYaml.js";
+import { userHome } from "@/lib/paths/home";
 
 // Profile names become directory names and command aliases — keep them inert.
 export const PROFILE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 export const IDENTITY_FILES = ["config.yaml", ".env", "SOUL.md", "profile.yaml", "auth.json", "state.db"];
 
-export const getHermesRoot = (root) => root || path.join(os.homedir(), ".hermes");
+export const getHermesRoot = (root) => root || path.join(userHome(), ".hermes");
 export const getProfilesRoot = (root) => path.join(getHermesRoot(root), "profiles");
 
 export const isValidProfileName = (name) =>

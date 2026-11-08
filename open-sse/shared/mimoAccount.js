@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
+import { userHome } from "@/lib/paths/home";
 
 /**
  * Xiaomi MiMo account-session helpers (used for weekly quota).
@@ -56,7 +57,7 @@ const _cache = new Map(); // key -> { cookie, at }
 const _inflight = new Map(); // key -> Promise<cookie|null>
 
 function desktopCookiePath() {
-  const home = os.homedir();
+  const home = userHome();
   if (process.platform === "win32") {
     return path.join(home, "AppData", "Roaming", "Xiaomi MiMo", "Partitions", "xiaomi-account", "Network", "Cookies");
   }

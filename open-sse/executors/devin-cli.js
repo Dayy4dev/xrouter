@@ -33,7 +33,7 @@ function resolveDevinBin() {
   if (envBin) return envBin;
 
   const isWin = process.platform === "win32";
-  const home = os.homedir();
+  const home = userHome();
 
   // 2. Known installer / package-manager locations. spawn uses shell:false on
   //    macOS/Linux, so process.env.PATH alone may miss ~/.local/bin, Homebrew,
@@ -84,6 +84,7 @@ function rpc(method, params, id) {
 
 const CLIENT_TOOLS_MCP_SCRIPT = `
 import readline from "node:readline";
+import { userHome } from "@/lib/paths/home";
 const TOOLS = JSON.parse(process.env.DEVIN_MCP_TOOLS || "[]");
 const RESULTS = JSON.parse(process.env.DEVIN_MCP_RESULTS || "{}");
 const rl = readline.createInterface({ input: process.stdin });
@@ -199,7 +200,7 @@ function extractClientToolResults(messages) {
 function allowedWorkspaceRoots() {
   const raw = String(process.env.DEVIN_WORKSPACE_ROOTS || "")
     .split(":").map((s) => s.trim()).filter(Boolean);
-  const roots = raw.length ? raw : [os.homedir(), os.tmpdir()];
+  const roots = raw.length ? raw : [userHome(), os.tmpdir()];
   return roots.map((r) => { try { return fs.realpathSync(r); } catch { return r; } });
 }
 function insideRoot(abs, root) {

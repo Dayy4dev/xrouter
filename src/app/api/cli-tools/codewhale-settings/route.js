@@ -7,10 +7,11 @@ import os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { parseTOML, stringifyTOML } from "confbox";
+import { userHome } from "@/lib/paths/home";
 
 const execAsync = promisify(exec);
 
-const getCodewhaleDir = () => path.join(os.homedir(), ".codewhale");
+const getCodewhaleDir = () => path.join(userHome(), ".codewhale");
 const getCodewhaleConfigPath = () => path.join(getCodewhaleDir(), "config.toml");
 
 const checkCodewhaleInstalled = async () => {

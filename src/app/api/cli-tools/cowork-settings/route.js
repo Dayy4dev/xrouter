@@ -8,6 +8,7 @@ import crypto from "crypto";
 import { DEFAULT_PLUGINS, LOCAL_STDIO_PLUGINS, buildManagedMcpServers } from "@/shared/constants/coworkPlugins";
 import { UPDATER_CONFIG } from "@/shared/constants/config";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
+import { userHome } from "@/lib/paths/home";
 
 const APP_PORT = UPDATER_CONFIG.appPort;
 const CLI_TOKEN_HEADER = "x-9r-cli-token";
@@ -52,12 +53,12 @@ const SECURITY_RELAX = {
 
 const getCandidateRoots = () => {
   if (os.platform() === "darwin") {
-    const base = path.join(os.homedir(), "Library", "Application Support");
+    const base = path.join(userHome(), "Library", "Application Support");
     return [path.join(base, "Claude-3p"), path.join(base, "Claude")];
   }
   if (os.platform() === "win32") {
-    const localApp = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
-    const roaming = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+    const localApp = process.env.LOCALAPPDATA || path.join(userHome(), "AppData", "Local");
+    const roaming = process.env.APPDATA || path.join(userHome(), "AppData", "Roaming");
     return [
       path.join(localApp, "Claude-3p"),
       path.join(roaming, "Claude-3p"),
@@ -66,17 +67,17 @@ const getCandidateRoots = () => {
     ];
   }
   return [
-    path.join(os.homedir(), ".config", "Claude-3p"),
-    path.join(os.homedir(), ".config", "Claude"),
+    path.join(userHome(), ".config", "Claude-3p"),
+    path.join(userHome(), ".config", "Claude"),
   ];
 };
 
 const getAppInstallPaths = () => {
   if (os.platform() === "darwin") {
-    return ["/Applications/Claude.app", path.join(os.homedir(), "Applications", "Claude.app")];
+    return ["/Applications/Claude.app", path.join(userHome(), "Applications", "Claude.app")];
   }
   if (os.platform() === "win32") {
-    const localApp = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
+    const localApp = process.env.LOCALAPPDATA || path.join(userHome(), "AppData", "Local");
     const programFiles = process.env["ProgramFiles"] || "C:\\Program Files";
     return [
       path.join(localApp, "AnthropicClaude"),
@@ -105,12 +106,12 @@ const getMetaPath = async () => path.join(await getConfigDir(), "_meta.json");
 const getWriteMetaPath = () => path.join(getWriteConfigDir(), "_meta.json");
 
 const get1pRoot = () => {
-  if (os.platform() === "darwin") return path.join(os.homedir(), "Library", "Application Support", "Claude");
+  if (os.platform() === "darwin") return path.join(userHome(), "Library", "Application Support", "Claude");
   if (os.platform() === "win32") {
-    const roaming = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+    const roaming = process.env.APPDATA || path.join(userHome(), "AppData", "Roaming");
     return path.join(roaming, "Claude");
   }
-  return path.join(os.homedir(), ".config", "Claude");
+  return path.join(userHome(), ".config", "Claude");
 };
 
 const get1pConfigPath = () => path.join(get1pRoot(), "claude_desktop_config.json");

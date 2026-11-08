@@ -6,13 +6,14 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import { userHome } from "@/lib/paths/home";
 
 const execAsync = promisify(exec);
 
 // Mirror the executor's resolveDevinBin discovery so the dashboard's status
 // matches what the runtime actually spawns.
 const candidateDevinPaths = () => {
-  const home = os.homedir();
+  const home = userHome();
   const isWin = os.platform() === "win32";
   const localAppData = process.env.LOCALAPPDATA || path.join(home, "AppData", "Local");
   // Mirror resolveDevinBin in the executor — cover installer + common

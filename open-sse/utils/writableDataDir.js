@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { userHome } from "@/lib/paths/home";
 
 let cached = null;
 
@@ -12,8 +13,8 @@ export function getWritableDataDir() {
   if (cached) return cached;
   const candidates = [
     process.env.DATA_DIR,
-    path.join(os.homedir(), ".xrouter"),
-    path.join(os.homedir(), ".9router"),
+    path.join(userHome(), ".xrouter"),
+    path.join(userHome(), ".9router"),
     path.join(os.tmpdir(), "xrouter"),
     path.join(os.tmpdir(), "9router"),
   ].filter(Boolean);

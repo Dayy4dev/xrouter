@@ -86,8 +86,10 @@ function redirectWithProto(targetPath, request) {
   if (host) {
     const [h, p] = host.split(":");
     url.hostname = h;
-    // Don't leak internal node ports (8080, 20128) onto public domains
-    if (p && !["8080", "20128", "80", "443"].includes(p)) {
+    // Don't leak internal node ports (8080, 20128) onto public domains.
+    // Loopback is the exception: the dashboard really is served on that port here,
+    // so dropping it would bounce every local redirect to port 80.
+    if (p && (isLoopbackHostname(h) || !["8080", "20128", "80", "443"].includes(p))) {
       url.port = p;
     } else {
       url.port = "";
