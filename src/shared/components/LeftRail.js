@@ -40,9 +40,9 @@ function RailRow({ href, icon, label, active, open, onClick, badge = null }) {
   );
 
   const cls = cn(
-    "relative flex h-7.5 w-full items-center gap-2 rounded-[5px] transition-colors duration-150 cursor-pointer",
-    open ? "px-2" : "justify-center px-0",
-    active ? "bg-primary/15 text-primary font-medium border border-border-subtle" : "text-text-main/80 hover:bg-surface-2 hover:text-text-main"
+    "relative flex h-8 w-full items-center gap-2.5 rounded-[8px] transition-colors duration-150 cursor-pointer",
+    open ? "px-2.5" : "justify-center px-0",
+    active ? "bg-surface-2 text-primary font-medium border border-border/80" : "text-text-main/80 hover:bg-surface-2 hover:text-text-main"
   );
 
   if (href) {
@@ -291,8 +291,8 @@ export default function LeftRail() {
     <aside
       ref={railRef}
       className={cn(
-        "relative isolate hidden my-2 ml-2 h-[calc(100vh-16px)] flex-col rounded-[8px] border border-border bg-surface select-none lg:flex z-30 shrink-0 shadow-lg",
-        open ? "w-[212px] overflow-hidden" : "w-[52px]"
+        "relative isolate hidden h-screen flex-col border-r border-border bg-sidebar select-none lg:flex z-30 shrink-0",
+        open ? "w-[212px] overflow-hidden" : "w-[56px]"
       )}
       aria-label="Application navigation"
     >

@@ -115,8 +115,8 @@
   --color-info-solid: #1f6f9e;
 
   /* Radius */
-  --radius-brand: 10px;
-  --radius-brand-lg: 14px;
+  --radius-brand: 12px;
+  --radius-brand-lg: 16px;
 
   /* Shadows */
   --shadow-soft: 0 1px 2px 0 rgba(0,0,0,0.04);
@@ -147,21 +147,21 @@
   --color-primary: #E56A4A;
   --color-primary-hover: #b8442a;
 
-  /* Surfaces (dark - near-black instrument panel) */
-  --color-bg: #050505;
-  --color-bg-alt: #0d0d0d;
-  --color-surface: #111111;
-  --color-surface-2: #1a1a1a;
-  --color-surface-3: #242424;
-  --color-sidebar: #0d0d0d;
+  /* Surfaces (dark - Gemini soft dark slate/charcoal) */
+  --color-bg: #131314;
+  --color-bg-alt: #1a1a1c;
+  --color-surface: #1e1f20;
+  --color-surface-2: #282a2c;
+  --color-surface-3: #333538;
+  --color-sidebar: #131314;
 
-  --color-border: #242424;
-  --color-border-subtle: #1a1a1a;
+  --color-border: #2d2f31;
+  --color-border-subtle: #222426;
 
-  --color-text: #ededed;
-  --color-text-main: #ededed;
-  --color-text-muted: #9ca3af;
-  --color-text-subtle: #808080;
+  --color-text: #e3e3e3;
+  --color-text-main: #f0f4f9;
+  --color-text-muted: #9aa0a6;
+  --color-text-subtle: #80868b;
 
   --color-bg-base: var(--color-bg);
   --color-bg-secondary: var(--color-surface-2);
@@ -194,8 +194,8 @@
   --color-info-fg: #8fbde0;
   --color-info-border: rgba(91, 147, 189, 0.30);
 
-  --color-field: #0b0b0b;
-  --color-field-border: #262626;
+  --color-field: #1e1f20;
+  --color-field-border: #333538;
 
   --shadow-soft: 0 1px 2px 0 rgba(0,0,0,0.3);
   --shadow-warm: 0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(229, 106, 74, 0.22);
@@ -290,17 +290,17 @@ select {
 
   /* Static fallbacks (explicit per-mode usage if needed) */
   --color-bg-light: #FCFBF9;
-  --color-bg-dark: #1a1a1a;
+  --color-bg-dark: #131314;
   --color-surface-light: #ffffff;
-  --color-surface-dark: #262626;
+  --color-surface-dark: #1e1f20;
   --color-sidebar-light: #F4F1EC;
-  --color-sidebar-dark: #1F1F1E;
+  --color-sidebar-dark: #131314;
   --color-border-light: #e5e7eb;
-  --color-border-dark: #333333;
+  --color-border-dark: #2d2f31;
   --color-text-main-light: #0a0a0a;
-  --color-text-main-dark: #ededed;
+  --color-text-main-dark: #f0f4f9;
   --color-text-muted-light: #6B7280;
-  --color-text-muted-dark: #9ca3af;
+  --color-text-muted-dark: #9aa0a6;
 
   /* Radius */
   --radius-brand: var(--radius-brand);
@@ -758,7 +758,7 @@ button:disabled,
 }
 
 /* ============================================================
-   Ember theme — SOLID warm panels (no frosted/translucent surfaces)
+   Ember theme — SOFT WARM SLATE (Gemini-inspired dark mode)
    Applied as `<html class="dark ember">` (default in X Router).
 
    Same explicit-colour approach as before: `@theme inline` bakes tokens into
@@ -766,34 +766,34 @@ button:disabled,
    ============================================================ */
 .dark.ember,
 .dark.ember body {
-  background-color: #050505;
+  background-color: #131314;
 }
 .dark.ember body {
   background-image:
-    radial-gradient(46rem 30rem at 92% -4%, rgba(229, 106, 74, 0.10), transparent 62%),
-    radial-gradient(38rem 26rem at -6% 104%, rgba(229, 106, 74, 0.05), transparent 60%);
+    radial-gradient(46rem 30rem at 92% -4%, rgba(229, 106, 74, 0.07), transparent 62%),
+    radial-gradient(38rem 26rem at -6% 104%, rgba(229, 106, 74, 0.04), transparent 60%);
   background-attachment: fixed;
 }
 
-.dark.ember .bg-surface  { background-color: #0e0d0c !important; }
-.dark.ember .bg-surface-2 { background-color: #161412 !important; }
-.dark.ember .bg-surface-3 { background-color: #1f1b18 !important; }
-.dark.ember .bg-bg-alt   { background-color: #0a0908 !important; }
-.dark.ember .bg-bg       { background-color: #050505 !important; }
+.dark.ember .bg-surface  { background-color: #1e1f20 !important; }
+.dark.ember .bg-surface-2 { background-color: #282a2c !important; }
+.dark.ember .bg-surface-3 { background-color: #333538 !important; }
+.dark.ember .bg-bg-alt   { background-color: #1a1a1c !important; }
+.dark.ember .bg-bg       { background-color: #131314 !important; }
 
-/* Inputs: fully opaque field, near-black. */
+/* Inputs: fully opaque field, soft slate charcoal matching Gemini inputs */
 .dark.ember input,
 .dark.ember select,
 .dark.ember textarea {
-  background-color: #0b0b0b !important;
-  border-color: #262626 !important;
+  background-color: #1e1f20 !important;
+  border-color: #333538 !important;
 }
 
 .dark.ember ::-webkit-scrollbar-thumb {
-  background: #26221f;
+  background: #333538;
 }
 .dark.ember ::-webkit-scrollbar-thumb:hover {
-  background: #332d28;
+  background: #444746;
 }
 
 
@@ -839,7 +839,7 @@ button:disabled,
 .field-control {
   background-color: var(--color-field);
   border: 1px solid var(--color-field-border);
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--color-text-main);
   transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
 }
@@ -884,6 +884,17 @@ h1, h2, h3 {
   * {
     scroll-behavior: smooth;
   }
+}
+
+/* Gemini code block style */
+.dark pre,
+.dark code:not([class*="material-symbols"]) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+.dark pre {
+  background-color: #1e1f20 !important;
+  border: 1px solid #2d2f31 !important;
+  border-radius: 12px;
 }
 
 @keyframes toast-in {

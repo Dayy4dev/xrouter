@@ -34,7 +34,7 @@ export default function Card({
   return (
     <div
       className={cn(
-        "relative overflow-hidden bg-surface border border-border rounded-[6px]",
+        "relative overflow-hidden bg-surface border border-border rounded-[12px]",
         elev ? "shadow-[var(--shadow-elev)]" : "shadow-none",
         hover &&
           "transition-[border-color,transform] duration-200 cursor-pointer hover:border-brand-500/55 hover:-translate-y-px",
