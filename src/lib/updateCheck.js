@@ -12,7 +12,7 @@
 // is nothing new and never breaks the dashboard. When the local revision cannot
 // be determined, set APP_REVISION=<sha> at build time; next.config.mjs does this
 // automatically for a normal build.
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import https from "node:https";
 import path from "node:path";
@@ -272,8 +272,18 @@ export async function getUpdateInfo(currentVersion) {
   if (localSha && head) {
     if (localSha === head.sha) behindBy = 0;
     else {
-      const compare = await fetchPending(localSha);
-      behindBy = compare ? compare.pendingBy : null;
+      // Local git verification: if remote head is already an ancestor of our local commit,
+      // we are ahead of (or equal to) upstream, so we are not behind.
+      try {
+        const isAncestor = execFileSync("git", ["merge-base", "--is-ancestor", head.sha, localSha], {
+          timeout: 3000,
+          stdio: "ignore",
+        });
+        behindBy = 0;
+      } catch {
+        const compare = await fetchPending(localSha);
+        behindBy = compare ? compare.pendingBy : null;
+      }
     }
   }
   // A published build carries APP_REVISION from its own checkout, which is a
