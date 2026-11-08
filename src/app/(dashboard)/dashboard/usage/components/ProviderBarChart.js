@@ -13,21 +13,19 @@ import {
   Cell,
 } from "recharts";
 import Card from "@/shared/components/Card";
-import { AI_PROVIDERS } from "@/shared/constants/providers";
-
-const THEME_FALLBACK_COLORS = [
+const THEME_BAR_PALETTE = [
   "var(--color-primary)",
   "color-mix(in srgb, var(--color-primary) 85%, white 15%)",
-  "color-mix(in srgb, var(--color-primary) 70%, var(--color-info) 30%)",
-  "color-mix(in srgb, var(--color-primary) 65%, var(--color-warning) 35%)",
-  "color-mix(in srgb, var(--color-primary) 50%, transparent)",
-  "color-mix(in srgb, var(--color-primary) 35%, transparent)",
+  "color-mix(in srgb, var(--color-primary) 70%, transparent)",
+  "color-mix(in srgb, var(--color-primary) 55%, transparent)",
+  "color-mix(in srgb, var(--color-primary) 42%, transparent)",
+  "color-mix(in srgb, var(--color-primary) 32%, transparent)",
+  "color-mix(in srgb, var(--color-primary) 24%, transparent)",
+  "color-mix(in srgb, var(--color-text-muted) 35%, transparent)",
 ];
 
-function getBarFill(providerId, index) {
-  const p = AI_PROVIDERS[providerId?.toLowerCase()];
-  if (p?.color) return p.color;
-  return THEME_FALLBACK_COLORS[index % THEME_FALLBACK_COLORS.length];
+function getBarFill(index) {
+  return THEME_BAR_PALETTE[index % THEME_BAR_PALETTE.length];
 }
 
 const fmtTokens = (n) => {
@@ -106,7 +104,7 @@ export default function ProviderBarChart({ byProvider }) {
             />
             <Bar dataKey={viewMode} radius={[4, 4, 0, 0]}>
               {chartData.map((d, i) => (
-                <Cell key={i} fill={getBarFill(d.name, i)} fillOpacity={0.9} />
+                <Cell key={i} fill={getBarFill(i)} fillOpacity={0.9} />
               ))}
             </Bar>
           </BarChart>
