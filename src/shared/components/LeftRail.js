@@ -161,7 +161,8 @@ FlyoutLink.propTypes = {
 export default function LeftRail() {
   const pathname = usePathname();
   const [pinned, setPinned] = useState(true);
-  const [expandedGroup, setExpandedGroup] = useState(null);
+  const [featuresOpen, setFeaturesOpen] = useState(false);
+  const [systemOpen, setSystemOpen] = useState(false);
   const [displayPort, setDisplayPort] = useState("8080");
   const railRef = useRef(null);
 
@@ -224,20 +225,62 @@ export default function LeftRail() {
     }
   };
 
-  useEffect(() => {
-    setExpandedGroup(null);
-  }, [pathname]);
+  const isWorkshopActive = workshopItems.some((i) => isActive(i.href));
+  const isSystemActive =
+    systemItems.some((i) => isActive(i.href)) ||
+    debugItems.some((i) => isActive(i.href)) ||
+    MEDIA_ITEMS.some((i) => isActive(i.href));
 
   useEffect(() => {
-    if (!expandedGroup) return;
-    const onDocClick = (e) => {
-      if (railRef.current && !railRef.current.contains(e.target)) {
-        setExpandedGroup(null);
+    try {
+      const savedFeatures = localStorage.getItem("xrouter_rail_features_expanded");
+      if (savedFeatures !== null) {
+        setFeaturesOpen(savedFeatures === "true");
+      } else if (isWorkshopActive) {
+        setFeaturesOpen(true);
       }
-    };
-    document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
-  }, [expandedGroup]);
+      const savedSystem = localStorage.getItem("xrouter_rail_system_expanded");
+      if (savedSystem !== null) {
+        setSystemOpen(savedSystem === "true");
+      } else if (isSystemActive) {
+        setSystemOpen(true);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (isWorkshopActive) {
+      setFeaturesOpen(true);
+    }
+  }, [isWorkshopActive]);
+
+  useEffect(() => {
+    if (isSystemActive) {
+      setSystemOpen(true);
+    }
+  }, [isSystemActive]);
+
+  const handleToggleFeatures = (e) => {
+    e?.preventDefault();
+    setFeaturesOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("xrouter_rail_features_expanded", String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleToggleSystem = (e) => {
+    e?.preventDefault();
+    setSystemOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("xrouter_rail_system_expanded", String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Split nav items into core routing vs telemetry for clean visual hierarchy
   const coreRoutingHrefs = ["/dashboard/endpoint", "/dashboard/teams", "/dashboard/providers", "/dashboard/combos"];
@@ -247,9 +290,6 @@ export default function LeftRail() {
   return (
     <aside
       ref={railRef}
-      onMouseLeave={() => {
-        setExpandedGroup(null);
-      }}
       className={cn(
         "relative isolate hidden my-2 ml-2 h-[calc(100vh-16px)] flex-col rounded-[8px] border border-border bg-surface select-none lg:flex z-30 shrink-0 shadow-lg",
         open ? "w-[212px] overflow-hidden" : "w-[52px]"
@@ -328,7 +368,6 @@ export default function LeftRail() {
               label={item.label}
               active={isActive(item.href)}
               open={open}
-              onClick={() => setExpandedGroup(null)}
             />
           ))}
         </div>
@@ -348,7 +387,6 @@ export default function LeftRail() {
               label={item.label}
               active={isActive(item.href)}
               open={open}
-              onClick={() => setExpandedGroup(null)}
             />
           ))}
           {!isApiKeyUser && (
@@ -358,7 +396,6 @@ export default function LeftRail() {
               label="Vouchers & Market"
               active={isActive("/dashboard/vouchers")}
               open={open}
-              onClick={() => setExpandedGroup(null)}
             />
           )}
         </div>
@@ -377,19 +414,18 @@ export default function LeftRail() {
                 <GroupRow
                   icon="auto_awesome"
                   label="Features"
-                  active={workshopItems.some((i) => isActive(i.href))}
+                  active={isWorkshopActive}
                   open={open}
-                  expanded={expandedGroup === "workshop"}
-                  onClick={() => setExpandedGroup((prev) => (prev === "workshop" ? null : "workshop"))}
+                  expanded={featuresOpen}
+                  onClick={handleToggleFeatures}
                 />
-                {expandedGroup === "workshop" && (
+                {featuresOpen && (
                   <div className={cn("mt-1 space-y-0.5", open ? "pl-3 border-l-2 border-border-subtle ml-3" : "px-0")}>
                     {workshopItems.map((item) => (
                       open ? (
                         <Link
                           key={item.href}
                           href={item.href}
-                          onClick={() => setExpandedGroup(null)}
                           title={item.label}
                           className={cn(
                             "flex items-center gap-2 rounded-[4px] px-2 py-1 text-[12px] transition-colors",
@@ -411,7 +447,6 @@ export default function LeftRail() {
                           label={item.label}
                           active={isActive(item.href)}
                           open={false}
-                          onClick={() => setExpandedGroup(null)}
                         />
                       )
                     ))}
@@ -426,16 +461,12 @@ export default function LeftRail() {
               <GroupRow
                 icon="tune"
                 label="System"
-                active={
-                  systemItems.some((i) => isActive(i.href)) ||
-                  debugItems.some((i) => isActive(i.href)) ||
-                  MEDIA_ITEMS.some((i) => isActive(i.href))
-                }
+                active={isSystemActive}
                 open={open}
-                expanded={expandedGroup === "system"}
-                onClick={() => setExpandedGroup((prev) => (prev === "system" ? null : "system"))}
+                expanded={systemOpen}
+                onClick={handleToggleSystem}
               />
-              {expandedGroup === "system" && (
+              {systemOpen && (
                 <div className={cn("mt-1 space-y-0.5", open ? "pl-3 border-l-2 border-border-subtle ml-3" : "px-0")}>
                   {canOpenMedia && (
                     <div className={cn("mb-1 pb-1", open ? "border-b border-border-subtle" : "")}>
@@ -449,7 +480,6 @@ export default function LeftRail() {
                           <Link
                             key={item.href}
                             href={item.href}
-                            onClick={() => setExpandedGroup(null)}
                             title={item.label}
                             className={cn(
                               "flex items-center gap-2 rounded-[4px] px-2 py-1 text-[12px] transition-colors",
@@ -471,7 +501,6 @@ export default function LeftRail() {
                             label={item.label}
                             active={isActive(item.href)}
                             open={false}
-                            onClick={() => setExpandedGroup(null)}
                           />
                         )
                       ))}
@@ -483,7 +512,6 @@ export default function LeftRail() {
                       <Link
                         key={item.href}
                         href={item.href}
-                        onClick={() => setExpandedGroup(null)}
                         title={item.label}
                         className={cn(
                           "flex items-center gap-2 rounded-[4px] px-2 py-1 text-[12px] transition-colors",
@@ -505,7 +533,6 @@ export default function LeftRail() {
                         label={item.label}
                         active={isActive(item.href)}
                         open={false}
-                        onClick={() => setExpandedGroup(null)}
                       />
                     )
                   ))}
@@ -515,7 +542,6 @@ export default function LeftRail() {
                       <Link
                         key={item.href}
                         href={item.href}
-                        onClick={() => setExpandedGroup(null)}
                         title={item.label}
                         className={cn(
                           "flex items-center gap-2 rounded-[4px] px-2 py-1 text-[12px] transition-colors",
@@ -537,14 +563,13 @@ export default function LeftRail() {
                         label={item.label}
                         active={isActive(item.href)}
                         open={false}
-                        onClick={() => setExpandedGroup(null)}
                       />
                     )
                   ))}
-                  </div>
-                  )}
-                  </div>
-                  )}
+                </div>
+              )}
+            </div>
+          )}
                   </div>
                   )}
                   </div>
