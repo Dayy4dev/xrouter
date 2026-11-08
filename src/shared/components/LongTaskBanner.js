@@ -100,22 +100,48 @@ function IconButton({ label, glyph, onClick, tone = "default", className, childr
  * The collapsed card. Same information as the full one, smaller, out of the
  * way. Fixed clear of mobile browser chrome on small screens.
  */
-function BackgroundCard({ title, message, percent, onExpand, onCancel, canCancel, inline = false }) {
+function BackgroundCard({
+  title,
+  message,
+  percent,
+  onExpand,
+  onCancel,
+  canCancel,
+  inline = false,
+  href,
+  onNavigate,
+}) {
+  const isClickable = Boolean(href || onNavigate);
+
+  const handleClick = () => {
+    if (onNavigate) {
+      onNavigate();
+    } else if (href && typeof window !== "undefined") {
+      window.location.assign(href);
+    }
+  };
+
   return (
     <div className={inline ? "pointer-events-none" : "pointer-events-none fixed bottom-20 right-4 z-[80] sm:bottom-6"}>
       <div
         role="status"
         aria-live="polite"
         className={cn(
-          "slide-in-right pointer-events-auto relative w-[min(86vw,320px)] overflow-hidden",
-          "rounded border border-border bg-surface"
+          "slide-in-right pointer-events-auto relative w-[min(86vw,320px)] overflow-hidden shadow-md",
+          "rounded border border-border bg-surface transition-all duration-150",
+          isClickable && "cursor-pointer hover:border-primary/50 hover:bg-surface-2/60"
         )}
+        onClick={handleClick}
+        title={isClickable ? "Click to view task page" : undefined}
       >
         <div className="flex items-center gap-2.5 px-3 py-2.5">
           <Ring className="size-3.5 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-medium leading-tight text-text-main">
-              {title || "Working"}
+            <p className="truncate text-[13px] font-medium leading-tight text-text-main flex items-center gap-1">
+              <span>{title || "Working"}</span>
+              {isClickable && (
+                <span className="material-symbols-outlined text-[13px] text-text-muted opacity-60">open_in_new</span>
+              )}
             </p>
             {message ? (
               <p className="mt-0.5 truncate font-mono text-[11px] leading-tight text-text-muted">
@@ -128,7 +154,7 @@ function BackgroundCard({ title, message, percent, onExpand, onCancel, canCancel
               {percent}%
             </span>
           ) : null}
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
             {onExpand ? (
               <IconButton label="Show full banner" glyph="expand_more" onClick={onExpand} />
             ) : null}
@@ -257,6 +283,8 @@ export default function LongTaskBanner({
   // Collapsed-card reopen hook: the dock owns that state, so it flips back
   // itself instead of expanding inside this component.
   onExpand = null,
+  href = null,
+  onNavigate = null,
 }) {
   const instanceKey = typeof title === "string" && title ? title : "__banner__";
   const percent =
@@ -334,6 +362,8 @@ export default function LongTaskBanner({
         canExpand={canExpand && typeof onExpand === "function"}
         onExpand={onExpand || undefined}
         onCancel={handleChipCancel}
+        href={href}
+        onNavigate={onNavigate}
       />
     );
   }
@@ -348,6 +378,8 @@ export default function LongTaskBanner({
         canExpand={canExpand && typeof onBackground === "function"}
         onExpand={() => setBackgroundedPersisted(false)}
         onCancel={handleCancel}
+        href={href}
+        onNavigate={onNavigate}
       />
     );
   }

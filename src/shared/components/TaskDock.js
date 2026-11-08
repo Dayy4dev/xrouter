@@ -3,53 +3,56 @@
 import { useState } from "react";
 import LongTaskBanner from "./LongTaskBanner";
 import { useTaskStore } from "@/store/taskStore";
+import { useRouter } from "next/navigation";
 
 /**
  * Renders every running long task above the dashboard, mounted once in the
  * dashboard layout so navigation never unmounts it.
  *
- * The newest task starts in the foreground; anything the operator has collapsed
- * (and the older tasks behind it) renders as a corner chip. Each banner owns its
- * own collapsed state, so backgrounding one is local and survives an update to
- * the task, and the tasks keep reporting progress while the operator navigates.
+ * Tasks run non-blockingly in the background by default (as corner chips)
+ * so the operator can freely navigate and work while tasks progress.
+ * Tasks are also tracked in NotificationBell.
  */
 export default function TaskDock() {
   const tasks = useTaskStore((s) => s.tasks);
   if (!tasks.length) return null;
 
-  const [first, ...rest] = tasks;
   return (
-    <>
-      <DockBanner key={first.id} task={first} startForeground />
-      <div className="pointer-events-none fixed bottom-20 right-4 sm:bottom-6 z-[65] flex w-[min(86vw,320px)] flex-col gap-2">
-        {rest.map((task) => (
-          <DockBanner key={task.id} task={task} startForeground={false} />
-        ))}
-      </div>
-    </>
+    <div className="pointer-events-none fixed bottom-20 right-4 sm:bottom-6 z-[65] flex w-[min(86vw,320px)] flex-col gap-2">
+      {tasks.map((task) => (
+        <DockBanner
+          key={task.id}
+          task={task}
+          startForeground={Boolean(task.startForeground)}
+        />
+      ))}
+    </div>
   );
 }
 
 /**
- * One task = one banner. The first task takes the full-screen banner (it can
- * background into the corner); everything behind it skips straight to the chip.
- * Chips render position-free inside the dock stack, so five imports queue as
- * five cards in one column, not five fixed overlays.
+ * One task = one banner. Default is a non-blocking corner chip unless explicitly
+ * flagged with task.startForeground = true.
  */
-function DockBanner({ task, startForeground }) {
-  // Backgrounding is LATCHED, not derived. It used to be plain component state,
-  // so the first task rendered a full-screen overlay (fixed inset-0) and the
-  // moment the operator pressed "Run in background" the overlay was still in the
-  // tree for one more paint - and every later render re-created it, because
-  // `fixed` was recomputed from this flag. The result was a task that looked
-  // backgrounded (a corner chip) while an invisible sheet still swallowed every
-  // click on the page. Keeping the flag here and never re-deriving `fixed`
-  // from it means the overlay unmounts the same render the chip appears.
+function DockBanner({ task, startForeground = false }) {
+  const router = useRouter();
   const [backgrounded, setBackgrounded] = useState(!startForeground);
 
-  // A task that is not the newest one has never had a foreground banner, so it
-  // is a chip by definition and has nothing to expand back to.
   const canExpand = startForeground;
+
+  const handleNavigate = () => {
+    if (!task?.href || typeof window === "undefined") return;
+    try {
+      if (window.location.pathname === task.href) return;
+      if (router && typeof router.push === "function") {
+        router.push(task.href);
+      } else {
+        window.location.assign(task.href);
+      }
+    } catch {
+      window.location.assign(task.href);
+    }
+  };
 
   return (
     <LongTaskBanner
@@ -58,6 +61,8 @@ function DockBanner({ task, startForeground }) {
       title={task.title}
       message={task.message}
       progress={task.progress ?? null}
+      href={task.href}
+      onNavigate={task.href ? handleNavigate : undefined}
       chipOnly={startForeground ? backgrounded : true}
       onCancel={() => useTaskStore.getState().cancel(task.id)}
       onBackground={() => setBackgrounded(true)}
