@@ -51,13 +51,22 @@ const useThemeStore = create(
       theme: "ember",
       accent: "orange",
       customColor: "#E56A4A",
-      // Backdrop for the provider topology map; localStorage only (never sent
-      // to /api/theme, a data URL there would be re-downloaded by every GET).
+      // Backdrop for the provider topology map. Synced to /api/theme (same
+      // global record as the rest of the theme) so other browsers/devices
+      // inherit it; uploads are compressed to a few hundred KB first.
       topologyBg: null,
-      topologyBgDim: false,
+      // Dim intensity 0-100 (0 = off). Legacy boolean values map on read.
+      topologyBgDim: 0,
 
-      setTopologyBg: (value) => set({ topologyBg: value }),
-      setTopologyBgDim: (dim) => set({ topologyBgDim: !!dim }),
+      setTopologyBg: (value) => {
+        set({ topologyBg: value });
+        syncThemeToServer(get());
+      },
+      setTopologyBgDim: (dim) => {
+        const n = Math.max(0, Math.min(100, Math.round(Number(dim) || 0)));
+        set({ topologyBgDim: n });
+        syncThemeToServer(get());
+      },
 
       setTheme: (theme) => {
         const id = THEME_IDS.includes(theme) ? theme : "ember";
@@ -106,6 +115,8 @@ const useThemeStore = create(
                   theme: data.theme || get().theme,
                   accent: data.accent || get().accent,
                   customColor: data.customColor || get().customColor,
+                  topologyBg: data.topologyBg !== undefined ? data.topologyBg : get().topologyBg,
+                  topologyBgDim: data.topologyBgDim !== undefined ? Number(data.topologyBgDim) || 0 : get().topologyBgDim,
                 });
                 applyTheme(data.theme || get().theme, data.accent || get().accent, data.customColor || get().customColor);
               }
@@ -121,12 +132,24 @@ const useThemeStore = create(
 );
 
 // Sync theme to server for global public portals
-function syncThemeToServer(theme, accent, customColor) {
+function syncThemeToServer(stateOrTheme, accent, customColor) {
   if (typeof window === "undefined") return;
+  let body;
+  if (stateOrTheme && typeof stateOrTheme === "object") {
+    body = {
+      theme: stateOrTheme.theme,
+      accent: stateOrTheme.accent,
+      customColor: stateOrTheme.customColor,
+      topologyBg: stateOrTheme.topologyBg,
+      topologyBgDim: stateOrTheme.topologyBgDim,
+    };
+  } else {
+    body = { theme: stateOrTheme, accent, customColor };
+  }
   fetch("/api/theme", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ theme, accent, customColor }),
+    body: JSON.stringify(body),
   }).catch(() => {});
 }
 

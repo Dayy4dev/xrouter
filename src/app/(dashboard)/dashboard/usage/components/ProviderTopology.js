@@ -416,6 +416,13 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   const topologyBg = useThemeStore((state) => state.topologyBg);
   const topologyBgDim = useThemeStore((state) => state.topologyBgDim);
   const validatedBg = useMemo(() => isTopologyBg(topologyBg), [topologyBg]);
+  // Normalise dim value: boolean true maps to 60%, numbers map 0-100 to 0.0-1.0
+  const dimOpacity = useMemo(() => {
+    if (typeof topologyBgDim === "boolean") return topologyBgDim ? 0.6 : 0;
+    const n = Number(topologyBgDim);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.min(1, Math.max(0, n / 100));
+  }, [topologyBgDim]);
 
   const rfInstance = useRef(null);
   const containerRef = useRef(null);
@@ -458,9 +465,10 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
             style={{ backgroundImage: `url("${validatedBg.replace(/"/g, "")}")` }}
             aria-hidden="true"
           />
-          {topologyBgDim && (
+          {dimOpacity > 0 && (
             <div
-              className="pointer-events-none absolute inset-0 z-0 bg-black/60 transition-opacity duration-300"
+              className="pointer-events-none absolute inset-0 z-0 bg-black transition-opacity duration-150"
+              style={{ opacity: dimOpacity }}
               aria-hidden="true"
             />
           )}

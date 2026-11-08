@@ -7,7 +7,7 @@ import { cn } from "@/shared/utils/cn";
 import useThemeStore, { THEME_IDS, ACCENT_PALETTES } from "@/store/themeStore";
 import { isTopologyBg, readTopologyBgFile } from "@/shared/utils/topologyBackground";
 
-/** Backdrop picker for the provider topology map (localStorage only). */
+/** Backdrop picker for the provider topology map (syncs globally across devices). */
 function TopologyBackdropPicker() {
   const topologyBg = useThemeStore((state) => state.topologyBg);
   const topologyBgDim = useThemeStore((state) => state.topologyBgDim);
@@ -19,6 +19,8 @@ function TopologyBackdropPicker() {
   const [urlMode, setUrlMode] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const preview = isTopologyBg(topologyBg);
+
+  const dimValue = typeof topologyBgDim === "boolean" ? (topologyBgDim ? 60 : 0) : Math.max(0, Math.min(100, Number(topologyBgDim) || 0));
 
   const pick = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -51,9 +53,10 @@ function TopologyBackdropPicker() {
   };
 
   return (
-    <div className="mt-3 pt-3 border-t border-border-subtle flex flex-col gap-2">
+    <div className="mt-3 pt-3 border-t border-border-subtle flex flex-col gap-2.5">
       <div className="flex items-center justify-between">
-        <div className="text-xs font-semibold text-text-muted px-1 uppercase tracking-wider">
+        <div className="text-xs font-semibold text-text-muted px-1 uppercase tracking-wider flex items-center gap-1.5">
+          <span className="material-symbols-outlined text-[15px]">wallpaper</span>
           Topology Backdrop
         </div>
         <div className="flex items-center gap-2">
@@ -111,15 +114,28 @@ function TopologyBackdropPicker() {
               Remove
             </button>
           )}
-          <label className="ml-auto flex items-center gap-1.5 text-xs text-text-muted cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={!!topologyBgDim}
-              onChange={(e) => setTopologyBgDim(e.target.checked)}
-              className="accent-[var(--color-primary)]"
-            />
-            Dim
-          </label>
+        </div>
+      )}
+
+      {/* Dim Intensity Slider (0% - 100%) */}
+      {preview && (
+        <div className="flex flex-col gap-1 p-2 rounded-[5px] bg-surface-2/60 border border-border-subtle">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-text-muted font-medium flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]">tonality</span>
+              Dim Backdrop Intensity
+            </span>
+            <span className="font-mono text-text-main">{dimValue}%</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={dimValue}
+            onChange={(e) => setTopologyBgDim(Number(e.target.value))}
+            className="w-full h-1.5 rounded-full appearance-none bg-border cursor-pointer accent-[var(--color-primary)] outline-none"
+          />
         </div>
       )}
 

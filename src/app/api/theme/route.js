@@ -13,16 +13,28 @@ export async function GET() {
         theme: "ember",
         accent: "orange",
         customColor: "#E56A4A",
+        topologyBg: null,
+        topologyBgDim: 0,
       });
     }
     const parsed = JSON.parse(raw);
-    return NextResponse.json({ ok: true, ...parsed });
+    return NextResponse.json({
+      ok: true,
+      theme: "ember",
+      accent: "orange",
+      customColor: "#E56A4A",
+      topologyBg: null,
+      topologyBgDim: 0,
+      ...parsed,
+    });
   } catch (e) {
     return NextResponse.json({
       ok: false,
       theme: "ember",
       accent: "orange",
       customColor: "#E56A4A",
+      topologyBg: null,
+      topologyBgDim: 0,
     });
   }
 }
@@ -31,12 +43,18 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const theme = body.theme || "ember";
-    const accent = body.accent || "orange";
-    const customColor = body.customColor || "#E56A4A";
+    const currentRaw = await getMeta("global_theme_settings", null);
+    const current = currentRaw ? JSON.parse(currentRaw) : {};
 
-    await setMeta("global_theme_settings", JSON.stringify({ theme, accent, customColor }));
-    return NextResponse.json({ ok: true, theme, accent, customColor });
+    const theme = body.theme !== undefined ? body.theme : current.theme || "ember";
+    const accent = body.accent !== undefined ? body.accent : current.accent || "orange";
+    const customColor = body.customColor !== undefined ? body.customColor : current.customColor || "#E56A4A";
+    const topologyBg = body.topologyBg !== undefined ? body.topologyBg : (current.topologyBg || null);
+    const topologyBgDim = body.topologyBgDim !== undefined ? Number(body.topologyBgDim) : (current.topologyBgDim || 0);
+
+    const payload = { theme, accent, customColor, topologyBg, topologyBgDim };
+    await setMeta("global_theme_settings", JSON.stringify(payload));
+    return NextResponse.json({ ok: true, ...payload });
   } catch (e) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
   }

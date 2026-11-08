@@ -1,7 +1,6 @@
-// Custom topology backdrop lives in the theme store (localStorage), not the
-// server-side global theme record: a data URL there would be re-downloaded on
-// every /api/theme GET. Uploads are downscaled and re-encoded here so a stored
-// value stays a few hundred KB at most.
+// Custom topology backdrop lives in SQLite meta store (synced across devices
+// via /api/theme) and is mirrored in themeStore / localStorage.
+// Uploads are downscaled and re-encoded here so a stored value stays small (< 600 KB).
 
 export const MAX_TOPO_SOURCE_BYTES = 8 * 1024 * 1024; // picked file cap
 const MAX_TOPO_CHARS = 600 * 1024; // stored value cap (~440 KB of image)
