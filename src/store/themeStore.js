@@ -51,6 +51,13 @@ const useThemeStore = create(
       theme: "ember",
       accent: "orange",
       customColor: "#E56A4A",
+      // Backdrop for the provider topology map; localStorage only (never sent
+      // to /api/theme, a data URL there would be re-downloaded by every GET).
+      topologyBg: null,
+      topologyBgDim: false,
+
+      setTopologyBg: (value) => set({ topologyBg: value }),
+      setTopologyBgDim: (dim) => set({ topologyBgDim: !!dim }),
 
       setTheme: (theme) => {
         const id = THEME_IDS.includes(theme) ? theme : "ember";
@@ -122,6 +129,9 @@ function syncThemeToServer(theme, accent, customColor) {
     body: JSON.stringify({ theme, accent, customColor }),
   }).catch(() => {});
 }
+
+// Backdrop values arrive from localStorage, so the component validates them
+// through isTopologyBg before building a CSS url() string.
 
 // Apply theme & accent palette to document
 function applyTheme(theme, accent = "orange", customColor = "#E56A4A") {

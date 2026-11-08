@@ -14,6 +14,8 @@ import "@xyflow/react/dist/style.css";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/providerIcon";
 import { isCustomLogo } from "@/shared/utils/providerLogo";
+import useThemeStore from "@/store/themeStore";
+import { isTopologyBg } from "@/shared/utils/topologyBackground";
 
 // Force-stop FE animation if a provider stays active longer than this
 const FE_ACTIVE_TIMEOUT_MS = 60000;
@@ -411,6 +413,10 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
     [providers]
   );
 
+  const topologyBg = useThemeStore((state) => state.topologyBg);
+  const topologyBgDim = useThemeStore((state) => state.topologyBgDim);
+  const validatedBg = useMemo(() => isTopologyBg(topologyBg), [topologyBg]);
+
   const rfInstance = useRef(null);
   const containerRef = useRef(null);
   const fitOpts = { padding: 0.2, duration: 200 };
@@ -439,9 +445,30 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   }, [nodes.length]);
 
   return (
-    <div ref={containerRef} className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]">
+    <div
+      ref={containerRef}
+      className="relative h-[320px] w-full min-w-0 overflow-hidden rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]"
+    >
+      {/* Custom backdrop behind nodes/edges. Kept in a separate layer so it
+          never re-renders ReactFlow and does not stretch the image. */}
+      {validatedBg && (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-opacity duration-300"
+            style={{ backgroundImage: `url("${validatedBg.replace(/"/g, "")}")` }}
+            aria-hidden="true"
+          />
+          {topologyBgDim && (
+            <div
+              className="pointer-events-none absolute inset-0 z-0 bg-black/60 transition-opacity duration-300"
+              aria-hidden="true"
+            />
+          )}
+        </>
+      )}
+
       {providers.length === 0 ? (
-        <div className="h-full flex items-center justify-center text-text-muted text-sm">
+        <div className="relative z-[1] h-full flex items-center justify-center text-text-muted text-sm">
           No providers connected
         </div>
       ) : (

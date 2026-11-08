@@ -5,6 +5,150 @@ import { createPortal } from "react-dom";
 import PropTypes from "prop-types";
 import { cn } from "@/shared/utils/cn";
 import useThemeStore, { THEME_IDS, ACCENT_PALETTES } from "@/store/themeStore";
+import { isTopologyBg, readTopologyBgFile } from "@/shared/utils/topologyBackground";
+
+/** Backdrop picker for the provider topology map (localStorage only). */
+function TopologyBackdropPicker() {
+  const topologyBg = useThemeStore((state) => state.topologyBg);
+  const topologyBgDim = useThemeStore((state) => state.topologyBgDim);
+  const setTopologyBg = useThemeStore((state) => state.setTopologyBg);
+  const setTopologyBgDim = useThemeStore((state) => state.setTopologyBgDim);
+  const inputRef = useRef(null);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [urlMode, setUrlMode] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const preview = isTopologyBg(topologyBg);
+
+  const pick = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    setError(null);
+    setBusy(true);
+    try {
+      setTopologyBg(await readTopologyBgFile(file));
+      setUrlMode(false);
+    } catch (err) {
+      setError(err.message || "Could not use that image");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const applyUrl = () => {
+    const clean = (urlInput || "").trim();
+    if (!clean) return;
+    const validated = isTopologyBg(clean);
+    if (!validated) {
+      setError("Enter a valid http(s) image URL");
+      return;
+    }
+    setError(null);
+    setTopologyBg(validated);
+    setUrlInput("");
+    setUrlMode(false);
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border-subtle flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-semibold text-text-muted px-1 uppercase tracking-wider">
+          Topology Backdrop
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { setUrlMode((v) => !v); setError(null); }}
+            className="text-[11px] text-primary hover:underline cursor-pointer"
+          >
+            {urlMode ? "Upload file instead" : "Use URL"}
+          </button>
+        </div>
+      </div>
+
+      {urlMode ? (
+        <div className="flex items-center gap-1.5">
+          <input
+            type="url"
+            placeholder="https://example.com/backdrop.png"
+            value={urlInput}
+            onChange={(e) => { setUrlInput(e.target.value); setError(null); }}
+            onKeyDown={(e) => { if (e.key === "Enter") applyUrl(); }}
+            className="flex-1 px-2 py-1 rounded-[6px] border border-border-subtle bg-surface-2 text-xs text-text-main placeholder:text-text-muted focus:border-primary focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={applyUrl}
+            className="px-2.5 py-1 rounded-[6px] border border-border-subtle bg-primary/10 text-xs font-medium text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+          >
+            Apply
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => inputRef.current && inputRef.current.click()}
+            disabled={busy}
+            className="px-2.5 py-1.5 rounded-[6px] border border-border-subtle text-xs text-text-main hover:bg-surface-2 disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            {busy ? "Processing…" : preview ? "Replace image" : "Upload image"}
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+            className="hidden"
+            onChange={pick}
+          />
+          {preview && (
+            <button
+              type="button"
+              onClick={() => setTopologyBg(null)}
+              className="px-2.5 py-1.5 rounded-[6px] border border-border-subtle text-xs text-text-muted hover:text-text-main hover:bg-surface-2 transition-colors cursor-pointer"
+            >
+              Remove
+            </button>
+          )}
+          <label className="ml-auto flex items-center gap-1.5 text-xs text-text-muted cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={!!topologyBgDim}
+              onChange={(e) => setTopologyBgDim(e.target.checked)}
+              className="accent-[var(--color-primary)]"
+            />
+            Dim
+          </label>
+        </div>
+      )}
+
+      {preview && (
+        <div className="flex items-center gap-2 px-1">
+          <span
+            className="h-10 w-20 rounded-[4px] border border-border bg-cover bg-center shrink-0"
+            style={{ backgroundImage: `url("${preview.replace(/"/g, "")}")` }}
+            aria-hidden="true"
+          />
+          <span className="text-[11px] text-text-muted truncate">
+            {preview.startsWith("data:") ? "Custom uploaded image" : preview}
+          </span>
+          {urlMode && (
+            <button
+              type="button"
+              onClick={() => setTopologyBg(null)}
+              className="ml-auto text-[11px] text-text-muted hover:text-text-main underline cursor-pointer"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      )}
+
+      {error && <div className="text-xs text-red-500 px-1">{error}</div>}
+    </div>
+  );
+}
 
 const MODES = [
   {
@@ -534,6 +678,8 @@ export default function ThemeModal({ isOpen, onClose }) {
               isActive={accent === "custom"}
             />
           </div>
+
+          <TopologyBackdropPicker />
         </div>
       </div>
     </div>,
