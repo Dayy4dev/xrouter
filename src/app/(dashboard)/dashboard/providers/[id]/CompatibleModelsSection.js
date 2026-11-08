@@ -139,13 +139,28 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
     if (!window.confirm(`Delete/remove ${failedModels.length} failed model(s)?`)) return;
     setDeletingFailed(true);
     try {
-      for (const m of failedModels) {
-        if (m.source === "custom") {
-          await onDeleteCustomModel(m.id);
-        } else if (m.alias) {
-          await onDeleteAlias(m.alias);
-        }
+      const customIds = failedModels.filter((m) => m.source === "custom").map((m) => m.id);
+      const aliasList = failedModels.filter((m) => m.source === "legacyAlias" && m.alias).map((m) => m.alias);
+
+      if (customIds.length > 0) {
+        await fetch("/api/models/custom", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            providerAlias: providerStorageAlias,
+            ids: customIds,
+          }),
+        });
       }
+
+      for (const alias of aliasList) {
+        await onDeleteAlias(alias);
+      }
+
+      await fetchCustomModels();
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("customModelChanged"));
+    } catch (error) {
+      console.log("Error deleting failed models:", error);
     } finally {
       setDeletingFailed(false);
     }

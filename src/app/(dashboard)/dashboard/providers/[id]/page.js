@@ -316,6 +316,31 @@ export default function ProviderDetailPage() {
     });
   };
 
+  const handleDeleteFailedCustom = async (ids) => {
+    if (!ids || !ids.length) return;
+    setConfirmState({
+      title: "Delete Failed Custom Models",
+      message: `Permanently delete ${ids.length} failed custom model(s)?`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await fetch("/api/models/custom", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              providerAlias: providerStorageAlias,
+              ids,
+            }),
+          });
+          await fetchCustomModels();
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("customModelChanged"));
+        } catch (error) {
+          console.log("Error deleting failed custom models:", error);
+        }
+      },
+    });
+  };
+
   const handleEnableAll = async (inactiveIds = []) => {
     if (enablingAll) return;
     setEnablingAll(true);
@@ -1302,6 +1327,9 @@ export default function ProviderDetailPage() {
       type: "llm",
     }).filter((row) => !studioTargetIndex.isStudioTarget(providerStorageAlias, row.id));
 
+    const activeCustomModelRows = customModelRows.filter((m) => !disabledSet.has(m.id));
+    const disabledCustomModelRows = customModelRows.filter((m) => disabledSet.has(m.id));
+
     // Apply search query & status filter
     const matchesFilter = (m) => {
       if (modelSearchQuery.trim()) {
@@ -1319,10 +1347,10 @@ export default function ProviderDetailPage() {
       return true;
     };
 
-    const filteredCustomModelRows = customModelRows.filter(matchesFilter);
+    const filteredCustomModelRows = activeCustomModelRows.filter(matchesFilter);
     const filteredDisplayModels = displayModels.filter(matchesFilter);
 
-    const hasAnyModels = customModelRows.length > 0 || displayModels.length > 0;
+    const hasAnyModels = activeCustomModelRows.length > 0 || displayModels.length > 0;
     const hasFilteredModels = filteredCustomModelRows.length > 0 || filteredDisplayModels.length > 0;
 
     return (
@@ -1350,6 +1378,7 @@ export default function ProviderDetailPage() {
                 handleDeleteAlias(model.alias);
               }
             }}
+            onDisable={() => handleDisableModel(model.id)}
             testStatus={modelTestResults[model.id]}
             latencyMs={modelTestLatencies[model.id]}
             onTest={connections.length > 0 || isFreeNoAuth ? () => handleTestModel(model.id) : undefined}
@@ -1492,24 +1521,47 @@ export default function ProviderDetailPage() {
         })()}
 
         {/* Disabled models - restorable */}
-        {disabledDisplayModels.length > 0 && (
-          <div className="w-full mt-2">
-            <p className="text-xs text-text-muted mb-2">Disabled models ({disabledDisplayModels.length}):</p>
-            <div className="flex flex-wrap gap-2">
-              {disabledDisplayModels.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => handleEnableModel(m.id)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-dashed border-black/10 dark:border-white/10 text-xs text-text-muted hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
-                  title="Restore model"
-                >
-                  <span className="material-symbols-outlined text-[13px]">add</span>
-                  {m.id}
-                </button>
-              ))}
+        {(() => {
+          const allDisabledModels = [
+            ...disabledDisplayModels.map((m) => ({ ...m, source: "catalog" })),
+            ...disabledCustomModelRows.map((m) => ({ ...m, source: m.source || "custom" })),
+          ];
+          if (allDisabledModels.length === 0) return null;
+          return (
+            <div className="w-full mt-2">
+              <p className="text-xs text-text-muted mb-2">Disabled models ({allDisabledModels.length}):</p>
+              <div className="flex flex-wrap gap-2">
+                {allDisabledModels.map((m) => (
+                  <span
+                    key={m.id}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-black/10 dark:border-white/10 text-xs text-text-muted hover:border-primary/40 transition-colors"
+                  >
+                    <button
+                      onClick={() => handleEnableModel(m.id)}
+                      className="flex items-center gap-1 hover:text-primary transition-colors"
+                      title="Restore model"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">add</span>
+                      {m.id}
+                    </button>
+                    {m.source === "custom" && (
+                      <button
+                        onClick={async () => {
+                          await handleDeleteCustomModel(m.id, "llm", providerStorageAlias);
+                          await handleEnableModel(m.id);
+                        }}
+                        className="text-text-muted hover:text-danger transition-colors ml-1 p-0.5 rounded"
+                        title="Delete custom model permanently"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">close</span>
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     );
   };
@@ -2019,6 +2071,9 @@ export default function ProviderDetailPage() {
 
               const activeIds = allIds.filter((id) => !disabledModelIds.includes(id));
               const failedActiveIds = activeIds.filter((id) => modelTestResults[id] === "error");
+              const failedCustomIds = customModelRows
+                .filter((m) => !disabledModelIds.includes(m.id) && modelTestResults[m.id] === "error")
+                .map((m) => m.id);
               const hasInactive = disabledModelIds.length > 0 || notAddedCatalogIds.length > 0;
               const canTest = connections.length > 0 || isFreeNoAuth;
 
@@ -2050,6 +2105,18 @@ export default function ProviderDetailPage() {
                       title="Disable models that failed test"
                     >
                       {`Disable Failed (${failedActiveIds.length})`}
+                    </Button>
+                  )}
+                  {failedCustomIds.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      icon="delete_sweep"
+                      onClick={() => handleDeleteFailedCustom(failedCustomIds)}
+                      className="text-red-500 hover:text-red-400 hover:border-red-500/30"
+                      title="Permanently remove failed custom models"
+                    >
+                      {`Delete Failed (${failedCustomIds.length})`}
                     </Button>
                   )}
                   {hasInactive && (

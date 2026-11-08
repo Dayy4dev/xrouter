@@ -81,13 +81,24 @@ export default function ModelRow({ model, fullModel, alias, copied, onCopy, test
           </span>
         </div>
         {isCustom ? (
-          <button
-            onClick={onDeleteAlias}
-            className="ml-auto rounded p-0.5 text-text-muted opacity-100 transition-opacity hover:bg-danger-bg hover:text-danger sm:opacity-0 sm:group-hover:opacity-100"
-            title="Remove custom model"
-          >
-            <span className="material-symbols-outlined text-[11px]">close</span>
-          </button>
+          <div className="ml-auto flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            {onDisable && (
+              <button
+                onClick={onDisable}
+                className="rounded p-0.5 text-text-muted hover:bg-sidebar hover:text-amber-500"
+                title="Disable model"
+              >
+                <span className="material-symbols-outlined text-[11px]">block</span>
+              </button>
+            )}
+            <button
+              onClick={onDeleteAlias}
+              className="rounded p-0.5 text-text-muted hover:bg-danger-bg hover:text-danger"
+              title="Remove custom model"
+            >
+              <span className="material-symbols-outlined text-[11px]">close</span>
+            </button>
+          </div>
         ) : onDisable ? (
           <button
             onClick={onDisable}

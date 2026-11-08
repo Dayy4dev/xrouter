@@ -30,6 +30,7 @@ export {
   getCustomModels,
   addCustomModel,
   deleteCustomModel,
+  deleteCustomModels,
   getMitmAlias,
   setMitmAliasAll,
   getApiKeys,

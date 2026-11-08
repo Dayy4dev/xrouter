@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCustomModels, addCustomModel, deleteCustomModel } from "@/models";
+import { getCustomModels, addCustomModel, deleteCustomModel, deleteCustomModels } from "@/models";
 import { reconcileAllowedModels } from "@/lib/db/repos/apiKeysRepo";
 import { CAPACITY_META, isSttTransport } from "@/shared/constants/models";
 
@@ -79,22 +79,39 @@ export async function POST(request) {
 }
 
 // DELETE /api/models/custom?providerAlias=xxx&id=yyy&type=zzz
+// OR body: { providerAlias: "xxx", ids: ["id1", "id2", ...], type: "llm" }
 export async function DELETE(request) {
   try {
+    let body = null;
+    try {
+      body = await request.json();
+    } catch {}
+
     const { searchParams } = new URL(request.url);
-    const providerAlias = searchParams.get("providerAlias");
-    const id = searchParams.get("id");
-    const type = searchParams.get("type") || "llm";
-    if (!providerAlias || !id) {
-      return NextResponse.json({ error: "providerAlias and id required" }, { status: 400 });
+    const providerAlias = body?.providerAlias || searchParams.get("providerAlias");
+    const rawIds = Array.isArray(body?.ids)
+      ? body.ids
+      : (searchParams.get("id") ? [searchParams.get("id")] : (body?.id ? [body.id] : []));
+    const ids = Array.from(new Set(rawIds.filter(Boolean)));
+    const type = body?.type || searchParams.get("type") || "llm";
+
+    if (!providerAlias || !ids.length) {
+      return NextResponse.json({ error: "providerAlias and id/ids required" }, { status: 400 });
     }
-    await deleteCustomModel({ providerAlias, id, type });
+
+    if (ids.length === 1) {
+      await deleteCustomModel({ providerAlias, id: ids[0], type });
+    } else {
+      await deleteCustomModels(providerAlias, ids);
+    }
+
     // Keys pinned to this model now point at nothing. Keys may hold it either
     // bare or provider-qualified, so both spellings are handed over.
-    const { emptied } = await reconcileAllowedModels({ removed: [id, `${providerAlias}/${id}`] });
-    return NextResponse.json({ success: true, ...(emptied.length ? { keysLeftForReview: emptied } : {}) });
+    const removedSpecs = ids.flatMap((id) => [id, `${providerAlias}/${id}`]);
+    const { emptied } = await reconcileAllowedModels({ removed: removedSpecs });
+    return NextResponse.json({ success: true, count: ids.length, ...(emptied.length ? { keysLeftForReview: emptied } : {}) });
   } catch (error) {
-    console.log("Error deleting custom model:", error);
-    return NextResponse.json({ error: "Failed to delete custom model" }, { status: 500 });
+    console.log("Error deleting custom model(s):", error);
+    return NextResponse.json({ error: "Failed to delete custom model(s)" }, { status: 500 });
   }
 }
