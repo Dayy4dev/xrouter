@@ -47,7 +47,11 @@ async function getInternalHeaders(model = "") {
   } catch {}
 
   const headers = { "Content-Type": "application/json" };
-  if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+  // Only inject Authorization if model is not from a keyless noAuth provider
+  const isKeylessNoAuth = String(model).startsWith("ovh/") || String(model).startsWith("koma/") || String(model).startsWith("opensatan/");
+  if (apiKey && !isKeylessNoAuth) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  }
   headers["x-9r-cli-token"] = await getConsistentMachineId(CLI_TOKEN_SALT);
 
   // OpenCode free tier requires official CLI User-Agent & client header even internally
@@ -172,7 +176,8 @@ export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:$
   const isNoAuthStreamModel =
     String(model).startsWith("opencode/") ||
     String(model).startsWith("oc/") ||
-    String(model).startsWith("opencode-zen/");
+    String(model).startsWith("opencode-zen/") ||
+    String(model).startsWith("ovh/");
   const res = await fetch(`${baseUrl}/api/v1/chat/completions`, {
     method: "POST",
     headers,

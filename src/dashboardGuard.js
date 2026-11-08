@@ -38,6 +38,7 @@ const PUBLIC_API_PATHS = [
   "/api/connection/telegram/webhook",
   "/api/connection/telegram/command",
   "/api/models",
+  "/api/models/test",
   "/api/model",
   "/api/usage",
 ];
@@ -101,6 +102,7 @@ function redirectWithProto(targetPath, request) {
 // Require auth, but allow through if requireLogin is disabled
 const PROTECTED_API_PATHS = [
   "/api/settings",
+  "/api/teams",
   "/api/keys",
   "/api/providers",
   "/api/provider-nodes",
