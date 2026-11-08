@@ -92,35 +92,38 @@ export default function MobileNav() {
   return (
     <>
       {/* Mobile Top Bar — docked at top of viewport so it never scrolls away or disappears */}
-      <header className="sticky top-0 z-40 flex h-12 w-full items-center justify-between border-b border-border bg-surface px-4 lg:hidden shrink-0 shadow-xs">
-        <Link href="/dashboard/endpoint" className="flex items-center gap-2.5">
-          <div
-            className="size-7 rounded-[6px] border bg-surface-2 flex items-center justify-center shrink-0 shadow-xs overflow-hidden p-0.5"
-            style={{ borderColor: "var(--color-primary, #E56A4A)" }}
-          >
-            <LogoMark className="size-full" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[12.5px] font-bold tracking-wider uppercase text-text-main leading-tight">
-              {APP_CONFIG.name}
-            </span>
-            <span className="text-[9.5px] font-mono text-text-muted leading-tight">
-              v{APP_CONFIG.version}
-            </span>
-          </div>
-        </Link>
-
-        <div className="flex items-center gap-2">
-          <NotificationBell />
+      <header className="sticky top-0 z-40 flex h-12 w-full items-center justify-between border-b border-border bg-surface px-3 sm:px-4 lg:hidden shrink-0 shadow-xs">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Open navigation menu"
-            className="flex h-8 items-center gap-1.5 rounded-[5px] border border-brand-500/40 bg-surface-2 px-3 text-text-main hover:border-brand-500 hover:bg-surface-3 transition-colors cursor-pointer shadow-xs active:scale-95"
+            className="flex h-8 items-center gap-1.5 rounded-[5px] border border-brand-500/40 bg-surface-2 px-2.5 text-text-main hover:border-brand-500 hover:bg-surface-3 transition-colors cursor-pointer shadow-xs active:scale-95"
           >
             <span className="material-symbols-outlined text-primary text-[19px] leading-none">menu</span>
             <span className="text-xs font-semibold tracking-wider uppercase text-text-main">MENU</span>
           </button>
+
+          <Link href="/dashboard/endpoint" className="flex items-center gap-2">
+            <div
+              className="size-7 rounded-[6px] border bg-surface-2 flex items-center justify-center shrink-0 shadow-xs overflow-hidden p-0.5"
+              style={{ borderColor: "var(--color-primary, #E56A4A)" }}
+            >
+              <LogoMark className="size-full" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[12.5px] font-bold tracking-wider uppercase text-text-main leading-tight">
+                {APP_CONFIG.name}
+              </span>
+              <span className="text-[9.5px] font-mono text-text-muted leading-tight">
+                v{APP_CONFIG.version}
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <NotificationBell />
         </div>
       </header>
 
@@ -132,7 +135,7 @@ export default function MobileNav() {
             onClick={() => setOpen(false)}
             className="absolute inset-0 bg-black/70"
           />
-          <div className="slide-in-right absolute right-0 top-0 flex h-full w-[min(86vw,330px)] flex-col border-l border-border bg-surface">
+          <div className="slide-in-left absolute left-0 top-0 flex h-full w-[min(86vw,330px)] flex-col border-r border-border bg-surface">
             <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border-subtle px-3">
               <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-primary/40 bg-surface-2 p-1 shadow-xs">
                 <LogoMark className="size-full" />

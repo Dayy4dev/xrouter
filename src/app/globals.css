@@ -527,6 +527,10 @@ button:disabled,
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
+@keyframes slideInFromLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -536,6 +540,7 @@ button:disabled,
   to { transform: translateY(0); opacity: 1; }
 }
 .slide-in-right { animation: slideInFromRight 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.slide-in-left { animation: slideInFromLeft 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 .fade-in { animation: fadeIn 0.2s ease-out forwards; }
 .slide-in-top { animation: slideInFromTop 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 .modal-in {
