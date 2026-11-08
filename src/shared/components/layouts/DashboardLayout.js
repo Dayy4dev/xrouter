@@ -10,6 +10,7 @@ import StatusBar from "../StatusBar";
 import WelcomeModal from "../WelcomeModal";
 import UpdateBanner from "../UpdateBanner";
 import TaskDock from "../TaskDock";
+import NotificationBell from "../NotificationBell";
 
 /* Toast variants pull from the semantic token triplet, so the same toast is
    legible in Ember dark and in light without a dark: override per variant. */
@@ -157,7 +158,13 @@ export default function DashboardLayout({ children }) {
             `-z-10` against the root stacking context. */}
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="ember-veil pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
-          {showHeading ? <PageHeading className="shrink-0" /> : null}
+          {showHeading ? (
+            <PageHeading className="shrink-0" />
+          ) : (
+            <div className="hidden lg:flex items-center justify-end h-10 px-4 lg:px-7 border-b border-border/40 bg-surface/20 backdrop-blur-xs shrink-0 z-20">
+              <NotificationBell />
+            </div>
+          )}
           <div
             className={
               isChat

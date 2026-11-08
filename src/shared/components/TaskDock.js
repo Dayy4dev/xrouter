@@ -14,20 +14,7 @@ import { useRouter } from "next/navigation";
  * Tasks are also tracked in NotificationBell.
  */
 export default function TaskDock() {
-  const tasks = useTaskStore((s) => s.tasks);
-  if (!tasks.length) return null;
-
-  return (
-    <div className="pointer-events-none fixed bottom-20 right-4 sm:bottom-6 z-[65] flex w-[min(86vw,320px)] flex-col gap-2">
-      {tasks.map((task) => (
-        <DockBanner
-          key={task.id}
-          task={task}
-          startForeground={Boolean(task.startForeground)}
-        />
-      ))}
-    </div>
-  );
+  return null;
 }
 
 /**

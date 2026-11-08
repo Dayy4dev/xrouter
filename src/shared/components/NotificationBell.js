@@ -6,6 +6,7 @@ import ChangelogModal from "./ChangelogModal";
 import { useSessionStore } from "@/store/sessionStore";
 import { useTaskStore } from "@/store/taskStore";
 import { revealBackgroundedTasks } from "./LongTaskBanner";
+import { cn } from "@/shared/utils/cn";
 
 const POLL_MS = 60000;
 
@@ -233,7 +234,11 @@ export default function NotificationBell() {
         {runningCount > 0 && (
           <span
             aria-hidden="true"
-            className="absolute -top-1 -right-1 size-2 rounded-full bg-emerald-500 animate-pulse"
+            title={`${runningCount} task(s) running`}
+            className={cn(
+              "absolute size-2.5 rounded-full bg-emerald-500 animate-pulse shadow-xs ring-2 ring-surface",
+              unread > 0 ? "-top-1 -left-1" : "-top-1 -right-1"
+            )}
           />
         )}
         {unread > 0 && (
@@ -284,7 +289,8 @@ export default function NotificationBell() {
                     <button
                       type="button"
                       onClick={() => handleTaskPick(task)}
-                      className="min-w-0 flex-1 text-left px-3.5 py-2.5"
+                      className="min-w-0 flex-1 text-left px-3.5 py-2.5 cursor-pointer"
+                      title={task.href ? "Click to view task page" : undefined}
                     >
                       <div className="flex items-start gap-2">
                         <span className={`material-symbols-outlined text-[16px] mt-0.5 shrink-0 ${isDone ? "text-emerald-500" : "text-primary"}`}>
@@ -309,18 +315,32 @@ export default function NotificationBell() {
                         </span>
                       </div>
                     </button>
-                    {isDone && (
-                      <div className="flex shrink-0 items-center pr-2 py-2.5">
+                    <div className="flex shrink-0 items-center pr-2 py-2.5">
+                      {isDone ? (
                         <button
                           type="button"
                           onClick={() => useTaskStore.getState().dismiss(task.id)}
-                          className="flex size-6 items-center justify-center rounded text-text-muted hover:text-text-main hover:bg-surface-3 transition-colors"
+                          className="flex size-6 items-center justify-center rounded text-text-muted hover:text-text-main hover:bg-surface-3 transition-colors cursor-pointer"
                           title="Dismiss"
+                          aria-label="Dismiss task"
                         >
                           <span className="material-symbols-outlined text-[14px]">close</span>
                         </button>
-                      </div>
-                    )}
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            useTaskStore.getState().cancel(task.id);
+                          }}
+                          className="flex size-6 items-center justify-center rounded text-text-muted hover:text-danger hover:bg-danger/10 transition-colors cursor-pointer"
+                          title="Cancel operation"
+                          aria-label="Cancel task"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">close</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
