@@ -1,4 +1,104 @@
-# v0.1.0 (2026-11-05)
+# v0.1.0 (2026-11-09)
+
+- **Fix Kilo Gateway 401 INVALID_TOKEN (Kilo Now Requires Auth)**:
+  - `open-sse/providers/registry/kilo-gateway.js` was registered as keyless (`noAuth: true`, `authType: "none"`), but `api.kilo.ai/api/gateway/chat/completions` now returns `401 INVALID_TOKEN` for all 12 models (only `/models` is still public). Switched to `authType: "apikey"` / `authModes: ["apikey"]` with `hasFree: false` so the dashboard collects a real key.
+  - Removed the hardcoded `kilo-gateway` no-auth bypass in `open-sse/executors/default.js#buildHeaders`, so the `Authorization: Bearer <key>` header is actually sent upstream.
+- **Show Tailscale Funnel Local Port in Dashboard + Robust Status Detection**:
+  - Added `getFunnelTargetPort()` (parses `funnel status --json` proxy target) and exposed `port`/`localPort` in `/api/tunnel/status` and `getTailscaleStatus()` in `src/lib/tunnel/tailscale/{tailscale,manager}.js`.
+  - Endpoint card in `EndpointPageClient.js` now renders a `PORT <n>` badge and `Funnel https://...ts.net → 127.0.0.1:<port>` line; badge state now falls back to `running` when `settingsEnabled` is stale, fixing the false "OFFLINE".
+- **Render Tailscale Auth URL Action Button in UI**:
+  - Rendered explicit "Open Login Page" action button and copy button on the Tailscale card and inside the modal in `EndpointPageClient.js` when authentication is required, preventing dead states.
+- **Fix Tailscale Dynamic Socket Detection (Resolves 'timed out without auth URL')**:
+  - Dynamically detect and bind to the active system Tailscale daemon socket (`/run/tailscale/tailscaled.sock` or `/var/run/tailscale/tailscaled.sock`) when the local userspace socket is absent, allowing `tailscale up` and `tailscale status` to capture the login AuthURL immediately.
+- **Fix Dashboard Freeze, Event Loop Stalls & High CPU on Large Connection Tables (11.8k+)**:
+  - **Master Key Caching**: In `src/lib/vault/credentialVault.js`, cached the derived master key in memory to eliminate redundant synchronous `machineIdSync` sub-process calls on every single decryption.
+  - **Lazy Credential Unsealing**: In `src/lib/db/repos/connectionsRepo.js`, implemented lazy property getters on `rowToConn` for `apiKey`, `accessToken`, and `refreshToken`, so loading table rows and route snapshots performs zero upfront AES decryptions until a specific connection is dispatched.
+  - **Direct Provider Queries & Scoped Invalidation**: In `src/lib/db/repos/connectionsRepo.js`, updated `getProviderConnections` with a provider filter to hit SQLite directly via indexed query instead of rebuilding the monolithic 11.8k connection snapshot, increased snapshot TTL to 5 seconds, and scoped `invalidateConnectionSnapshot` strictly to structural routing mutations (ignoring volatile heartbeat/usage counter updates).
+- **Fix ReferenceError in Cloudflare Tunnel Status**:
+  - In `src/lib/tunnel/cloudflare/manager.js`, removed undefined `tunnelActive` variable on fallback check in `getTunnelStatus()`.
+- **Fix Tailscale Root Installation on Linux**:
+  - In `src/app/api/tunnel/tailscale-install/route.js` and `src/lib/tunnel/tailscale/tailscale.js`, enabled passwordless root execution and direct daemon spawning without sudo when running as UID 0.
+- **Fix SQLite Fallback in Antigravity Tier Probe & Telegram Bot Service**:
+  - Implemented dynamic fallback to `better-sqlite3` when `node:sqlite` is unavailable in `src/lib/usage/antigravityTier.js` and `src/shared/services/telegramBotService.cjs`, preventing build-time and runtime crashes in non-Node 22.5+ environments.
+- **Restore Upstream Decolua Tailscale Flow, Port KiloCode Keyless Gateway, OpenCode-CC Hardening & Granular Auto-Backup**:
+  - **Decolua Tailscale Flow**: Restored canonical upstream Decolua Tailscale manager, daemon spawning, installation route, and endpoint modal logic.
+  - **KiloCode Keyless Gateway**: Registered `kilo-gateway` (`kgw`) with zero-auth public access and 10 verified free models (`nvidia/nemotron-3.5-super-vl:free`, `kilo-auto/free`, `stealth/glyph-cluster`, etc.).
+  - **OpenCode Hardening (opencode-cc)**: Added 38,000-character tool surface limit in `open-sse/utils/opencodeFingerprint.js`, normalized `prompt_cache_retention` to `prompt_cache_options: { mode: "implicit" }`, and added 400ms burst pacing in `open-sse/executors/opencode.js`.
+  - **Granular Auto-Backup Scope (Telegram 45MB Mitigation)**: Added section-level data selection in `src/lib/db/repos/autoBackupRepo.js`, `src/shared/services/telegramBackup.js`, and profile modal; excluded heavy usage logs by default to keep backups compact under Telegram limits.
+
+# v0.1.0 (2026-11-08)
+
+- **Complete Port of OhMyRouter Features (2.A, 2.B, 2.D, 2.E) with Model Bypass Vault Encryption**:
+  - **2.A (Vercel Multi-Relay Deployment)**: Upgraded `/api/proxy-pools/vercel-deploy` and modal to support deploying up to 23 parallel Vercel Edge relays with auto-naming (`#1` to `#23`).
+  - **2.B (P99.9 Microsecond Latency Profiler)**: Implemented `OverheadTracker` ring-buffer in `open-sse/utils/overheadTracker.js` with phases (`ingress.format_detect`, `upstream.execute`) and exposed telemetry report at `/api/telemetry/latency`.
+  - **2.D (Hermes Sync + Model Bypass Encryption)**: Implemented `src/lib/persona/hermesSync.js` to mirror active persona to `$HERMES_HOME/SOUL.md` or `$SYNAPSE_HOME/SOUL.md` with automatic backups; encrypted all Model Bypass Prompt Injections at rest using AES-256-GCM Vault (`src/lib/vault/credentialVault.js`).
+  - **2.E (State Snapshot Routing)**: Implemented in-memory 1-second route snapshot grouped by provider in `connectionsRepo.js` eliminating N+1 queries.
+
+- **Fix Team Custom API Key Validation & Permitted Models Filtering**:
+  - In `src/lib/db/repos/apiKeysRepo.js`, removed hardcoded `xteam-` prefix restrictions in `getApiKeyByKey()` and `validateApiKey()`, allowing any custom prefix or key name (e.g. `yteam-*`, `sk-*`, custom tokens) to authenticate against the `teams` table.
+  - Linked `getAllowedModelsOfKey()` to the `teams` table so client requests fetching `/v1/models` with a team API key strictly see only their permitted models (e.g. `mine`).
+  - In `src/lib/db/repos/allowedModels.js`, added support for JSON array format parsing in `parseAllowedModels()`.
+  - Updated Teams UI input description in `src/app/(dashboard)/dashboard/teams/page.js` to highlight support for custom prefixes.
+
+- **Eliminate Semantic Cache False Hits & Enable Remote Tunnel Access**:
+  - Enforced strict token-identity sequence matching in `open-sse/rtk/semanticCache.js` so different prompts (even with similar keywords) never false-hit.
+  - In `src/dashboardGuard.js`, allow authenticated dashboard sessions (`isAuthenticated`) to access tunnel management endpoints (`/api/tunnel/*`) remotely, fixing the 403 error that caused the Tailscale modal to dismiss prematurely.
+  - In `EndpointPageClient.js`, surface HTTP error responses directly in `handleInstallTailscale()` and keep install logs visible on error.
+
+- **Fix Tailscale Installation Flow (Decouple Login Timeout & Auto-Close Modal)**:
+  - In `src/lib/tunnel/tailscale/tailscale.js`, decoupled installer from blocking `startLogin()` so `installTailscale()` finishes immediately upon package install without 15s login timeout.
+  - In `EndpointPageClient.js`, keep Tailscale modal open on successful install showing installed status and explicit Connect action rather than abruptly dismissing the modal.
+
+- **Fix Tailscale Daemon Execution on Linux Root Environments**:
+  - In `src/lib/tunnel/tailscale/tailscale.js`, resolve absolute path for `tailscaled` daemon across `/usr/sbin`, `/usr/bin`, and `/usr/local/bin` candidates.
+  - Bypass `sudo` spawning in `startDaemonWithPassword()` when running directly as root (`process.getuid() === 0`) to prevent sudo prompt hangs.
+
+- **Complete Port of 9RouterX Features (A1, B1, B2, B4)**:
+  - **A1 (OpenCode Stealth)**: Preserved Bun/BoringSSL exact HTTP/2 pseudo-header and header order (`content-type`, `authorization`, `user-agent`, `x-opencode-*`) to evade Cloudflare WAF 403 FreeTierError.
+  - **B1 (Persona Enhancements)**: Implemented per-preset model exclusion rules and Gemini `safetySettings: BLOCK_NONE` API bypass in `promptInjectionRepo.js` and `openai-to-gemini.js`.
+  - **B2 (Credential Vault)**: Implemented AES-256-GCM sealed credential storage in `src/lib/vault/credentialVault.js` with automatic seal/unseal hooks in `connectionsRepo.js` (backward compatible with plaintext legacy data).
+  - **B4 (Multi-Key Policy Plans)**: Enforced Team & Plan governance constraints (RPM/TPM limit, daily/monthly spend USD cap, daily/monthly request volume caps) in `apiKeysRepo.js`.
+
+- **Fix Tailscale Installer Sudo Password Requirement for Root Users**:
+  - In `src/app/api/tunnel/tailscale-install/route.js` and `tailscale.js`, allow passwordless install when running as `root` (`process.getuid() === 0`) using direct `sh` spawn.
+  - Added optional Sudo Password input field in Tailscale installation modal on Endpoint page so users can provide credentials when required.
+
+- **Preserve Bun/BoringSSL HTTP Header Ordering in OpenCode Executor**:
+  - Aligned header order in `open-sse/executors/opencode.js` with OpenCode CLI upstream fingerprint (`opencode_stealth.go` specification) to prevent Cloudflare WAF header-order flagging on free-tier requests.
+
+- **Fix Stream Stall Timeout on Long-Running Reasoning Models (GLM-5.3-Flash)**:
+  - Extended default stall watchdog `STREAM_STALL_TIMEOUT_MS` from 360s to 600s (10 minutes) in `runtimeConfig.js` and set explicit 600s stall threshold for `glm` provider.
+  - Added downstream tap monitoring in `pipeWithDisconnect` (`open-sse/utils/streamHandler.js`) to continuously reset watchdog activity during slow token emission and reasoning phases.
+
+- **Dynamic Cooldown Registry & Intelligent 429 Rate-Limit Quarantine (voidllm pattern)**:
+  - Implemented `src/sse/services/cooldownRegistry.js` inspired by VoidLLM (`internal/cooldown/registry.go`).
+  - Separates temporary rate limits (`HTTP 429` / `FreeUsageLimitError`) from permanent circuit-breaker failures, preventing premature key deletion.
+  - Automatically isolates throttled accounts/models during their cooldown window and seamlessly fails over to backup connections without user interruption.
+  - Opportunistic memory eviction and auto-healing on successful requests.
+
+- **Dual-Stage Semantic Prompt Caching (messkan/prompt-cache pattern)**:
+  - Upgraded `open-sse/rtk/semanticCache.js` from basic hash-only caching to a dual-stage caching engine: Tier 1 exact SHA-256 hash match (0ms) and Tier 2 lexical-semantic similarity engine combining word-level cosine similarity and character trigram Jaccard similarity.
+  - Added configurable similarity threshold (`setSemanticSimilarityThreshold`, default 0.85) and separated metrics for exactHits vs semanticHits.
+  - Fixed streaming handler completion caching to prevent raw stream payload bypass.
+
+- **Fix OVH Cloud Kepler AI Base URL Endpoint & SQLite ALTER TABLE ADD COLUMN**:
+  - Fixed 404 URL in `open-sse/providers/registry/ovh.js` and `open-sse/executors/default.js` by targeting `/chat/completions` instead of bare `/v1`.
+  - Resolved SQLite restriction error `Cannot add a UNIQUE column` by splitting column addition and creating a separate unique index on `teams(apiKey)` in `teamsRepo.js` and `schema.js`.
+
+- **Helicone-Grade Observability Enhancement in Request Logs**:
+  - Enhanced request logging in `usageRepo.js` and `RequestLogger.js` with per-request real-time USD cost metrics and status badges inspired by Helicone observability patterns.
+  - Added auto-rebind support in `testProxyUrl` and `proxy-pools/[id]/test` for `v2ray-builtin-tunnel` so Xray child processes automatically respawn if offline.
+
+- **Enhance VMess TLS Profile Parsing (ALPN & Fingerprint)**:
+  - Extracted `fp` and `alpn` parameters from VMess JSON configs in `src/lib/v2ray/parser.js` and forwarded to Xray TLS stream settings for optimal handshake negotiation.
+
+- **Fix Teams Database Schema & Enforce Spend Limit (USD) Governance**:
+  - Added self-healing `ensureTeamsSchema` in `teamsRepo.js` to ensure the `apiKey` column exists on the `teams` table, fixing `table teams has no column named apiKey`.
+  - Implemented real-time spend limit enforcement in `validateApiKey` (`apiKeysRepo.js`) checking both `dailySpendLimitUsd` and `monthlySpendLimitUsd` from `usageHistory` costs.
+  - Refined `getPricingForModel` fallback in `pricing.js` to prevent over-eager zeroing of models and ensure estimated cost in USD tracks appropriately.
+
+- **Fix DefaultExecutor Authorization for Keyless OVH Provider**:
+  - Added early check in `DefaultExecutor.buildHeaders()` to strip `Authorization` header for `ovh` and no-auth providers so upstream doesn't return `403 Forbidden: authentication failed`.
 
 - **Backport Decolua Upstream PRs (#5486, #5508, #5509)**:
   - **PR #5486**: Preserved explicit `thinking.budget_tokens` on DeepSeek models (`thinkingUnified.js`) so compatible hosts don't reject requests as missing budget.

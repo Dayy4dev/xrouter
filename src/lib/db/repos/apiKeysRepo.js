@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
-import { DEFAULT_PERMISSIONS } from "@/lib/auth/permissionPaths";
+import { DEFAULT_PERMISSIONS } from "../../auth/permissionPaths.js";
 // The allowed-model pattern language lives in a dependency-free module of its own:
 // the request gate, the /v1/models listing and the usage dashboards all read it, and
 // the self-check loads it without dragging in the database driver and uuid. Re-exported
@@ -66,8 +66,8 @@ export async function getApiKeyByKey(key) {
   const row = db.get(`SELECT * FROM apiKeys WHERE key = ?`, [key]);
   if (row) return rowToKey(row);
 
-  // Fallback: check if this is an xteam key from teams table
-  if (key && (key.startsWith("xteam-") || key.startsWith("team_"))) {
+  // Fallback: check if this key belongs to a team from teams table (supports custom keys/prefixes)
+  if (key) {
     try {
       const teamRow = db.get(`SELECT * FROM teams WHERE apiKey = ? AND enabled = 1`, [key]);
       if (teamRow) {
@@ -272,10 +272,25 @@ export async function getAllowedModelsOfKey(key) {
  try {
  const db = await getAdapter();
  const row = db.get(`SELECT allowedModels FROM apiKeys WHERE key = ?`, [raw]);
- return row ? parseAllowedModels(row.allowedModels) : null;
+ if (row) return parseAllowedModels(row.allowedModels);
+ // Fallback: check teams table for team API key permitted models
+ const teamRow = db.get(`SELECT allowedModels FROM teams WHERE apiKey = ? AND enabled = 1`, [raw]);
+ if (teamRow) return parseAllowedModels(teamRow.allowedModels);
+ return null;
  } catch {
  return null;
  }
+}
+
+// Helper to sum team spending in given time window
+export async function getTeamSpendUsd(apiKey, sinceIso) {
+  if (!apiKey) return 0;
+  const db = await getAdapter();
+  const row = db.get(
+    `SELECT SUM(cost) as totalCost FROM usageHistory WHERE apiKey = ? AND timestamp >= ?`,
+    [apiKey, sinceIso]
+  );
+  return Number(row?.totalCost) || 0;
 }
 
 export async function validateApiKey(key, requestedModel = null, clientIp = null) {
@@ -283,7 +298,33 @@ export async function validateApiKey(key, requestedModel = null, clientIp = null
   let result = false;
 
   db.transaction(() => {
-    const row = db.get(`SELECT * FROM apiKeys WHERE key = ?`, [key]);
+    let row = db.get(`SELECT * FROM apiKeys WHERE key = ?`, [key]);
+    let teamRecord = null;
+    if (!row && key) {
+      const teamRow = db.get(`SELECT * FROM teams WHERE apiKey = ?`, [key]);
+      if (teamRow) {
+        if (teamRow.enabled !== 1 && teamRow.enabled !== true) {
+          result = "KEY_DISABLED";
+          return;
+        }
+        teamRecord = teamRow;
+        row = {
+          id: teamRow.id,
+          key: teamRow.apiKey,
+          isActive: 1,
+          tokenLimit: 0,
+          usedTokens: 0,
+          resetInterval: "never",
+          allowedModels: teamRow.allowedModels || "*",
+          rpmLimit: teamRow.rpmLimit || 0,
+          tpmLimit: 0,
+          ipWhitelist: "",
+          expiresAt: null,
+          createdAt: teamRow.createdAt,
+          lastResetAt: null,
+        };
+      }
+    }
     if (!row) {
       result = false;
       return;
@@ -303,7 +344,6 @@ export async function validateApiKey(key, requestedModel = null, clientIp = null
       }
     }
 
-
     // Check IP whitelist (empty = disabled/allow all)
     const ipWhitelist = (row.ipWhitelist || "").trim();
     if (ipWhitelist && clientIp) {
@@ -311,6 +351,72 @@ export async function validateApiKey(key, requestedModel = null, clientIp = null
       if (allowedIps.length > 0 && !allowedIps.includes(clientIp)) {
         result = "IP_NOT_ALLOWED";
         return;
+      }
+    }
+
+    // Check Team-level Spend Limit Constraints ($ USD)
+    if (teamRecord) {
+      const dailySpendCap = Number(teamRecord.dailySpendLimitUsd) || 0;
+      const monthlySpendCap = Number(teamRecord.monthlySpendLimitUsd) || 0;
+
+      if (dailySpendCap > 0) {
+        const startOfDay = new Date();
+        startOfDay.setUTCHours(0, 0, 0, 0);
+        const dayRow = db.get(
+          `SELECT SUM(cost) as totalCost FROM usageHistory WHERE apiKey = ? AND timestamp >= ?`,
+          [key, startOfDay.toISOString()]
+        );
+        const daySpent = Number(dayRow?.totalCost) || 0;
+        if (daySpent >= dailySpendCap) {
+          result = "QUOTA_EXCEEDED";
+          return;
+        }
+      }
+
+      if (monthlySpendCap > 0) {
+        const startOfMonth = new Date();
+        startOfMonth.setUTCDate(1);
+        startOfMonth.setUTCHours(0, 0, 0, 0);
+        const monthRow = db.get(
+          `SELECT SUM(cost) as totalCost FROM usageHistory WHERE apiKey = ? AND timestamp >= ?`,
+          [key, startOfMonth.toISOString()]
+        );
+        const monthSpent = Number(monthRow?.totalCost) || 0;
+        if (monthSpent >= monthlySpendCap) {
+          result = "QUOTA_EXCEEDED";
+          return;
+        }
+      }
+
+      // Check Team-level Request Volume Limits (Daily & Monthly Request Caps)
+      const dailyReqCap = Number(teamRecord.dailyLimit) || 0;
+      const monthlyReqCap = Number(teamRecord.monthlyLimit) || 0;
+
+      if (dailyReqCap > 0) {
+        const startOfDay = new Date();
+        startOfDay.setUTCHours(0, 0, 0, 0);
+        const dayReqRow = db.get(
+          `SELECT COUNT(*) as reqCount FROM usageHistory WHERE apiKey = ? AND timestamp >= ?`,
+          [key, startOfDay.toISOString()]
+        );
+        if ((Number(dayReqRow?.reqCount) || 0) >= dailyReqCap) {
+          result = "RATE_LIMIT_EXCEEDED";
+          return;
+        }
+      }
+
+      if (monthlyReqCap > 0) {
+        const startOfMonth = new Date();
+        startOfMonth.setUTCDate(1);
+        startOfMonth.setUTCHours(0, 0, 0, 0);
+        const monthReqRow = db.get(
+          `SELECT COUNT(*) as reqCount FROM usageHistory WHERE apiKey = ? AND timestamp >= ?`,
+          [key, startOfMonth.toISOString()]
+        );
+        if ((Number(monthReqRow?.reqCount) || 0) >= monthlyReqCap) {
+          result = "RATE_LIMIT_EXCEEDED";
+          return;
+        }
       }
     }
 

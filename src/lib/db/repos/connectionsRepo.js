@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { getAdapter } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
+import { sealCredential, unsealCredential } from "../../vault/credentialVault.js";
 
 const OPTIONAL_FIELDS = [
   "displayName", "email", "globalPriority", "defaultModel",
@@ -35,7 +36,12 @@ function resetHealthStateOnActivation(existing, patch) {
 function rowToConn(row) {
   if (!row) return null;
   const extra = parseJson(row.data, {});
-  return {
+
+  let unsealedApiKey;
+  let unsealedAccessToken;
+  let unsealedRefreshToken;
+
+  const conn = {
     ...extra,
     id: row.id,
     provider: row.provider,
@@ -47,10 +53,54 @@ function rowToConn(row) {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+
+  // Lazy unseal credentials on demand to prevent CPU stalls when loading thousands of rows
+  if (extra.apiKey && typeof extra.apiKey === "string" && extra.apiKey.startsWith("enc:v1:")) {
+    Object.defineProperty(conn, "apiKey", {
+      get() {
+        if (unsealedApiKey === undefined) unsealedApiKey = unsealCredential(extra.apiKey);
+        return unsealedApiKey;
+      },
+      set(v) { unsealedApiKey = v; extra.apiKey = v; },
+      enumerable: true,
+      configurable: true,
+    });
+  }
+  if (extra.accessToken && typeof extra.accessToken === "string" && extra.accessToken.startsWith("enc:v1:")) {
+    Object.defineProperty(conn, "accessToken", {
+      get() {
+        if (unsealedAccessToken === undefined) unsealedAccessToken = unsealCredential(extra.accessToken);
+        return unsealedAccessToken;
+      },
+      set(v) { unsealedAccessToken = v; extra.accessToken = v; },
+      enumerable: true,
+      configurable: true,
+    });
+  }
+  if (extra.refreshToken && typeof extra.refreshToken === "string" && extra.refreshToken.startsWith("enc:v1:")) {
+    Object.defineProperty(conn, "refreshToken", {
+      get() {
+        if (unsealedRefreshToken === undefined) unsealedRefreshToken = unsealCredential(extra.refreshToken);
+        return unsealedRefreshToken;
+      },
+      set(v) { unsealedRefreshToken = v; extra.refreshToken = v; },
+      enumerable: true,
+      configurable: true,
+    });
+  }
+
+  return conn;
 }
 
 function connToRow(c) {
   const { id, provider, authType, name, email, priority, isActive, createdAt, updatedAt, ...rest } = c;
+
+  // Seal sensitive credential fields before writing to SQLite database
+  const toStore = { ...rest };
+  if (toStore.apiKey) toStore.apiKey = sealCredential(toStore.apiKey);
+  if (toStore.accessToken) toStore.accessToken = sealCredential(toStore.accessToken);
+  if (toStore.refreshToken) toStore.refreshToken = sealCredential(toStore.refreshToken);
+
   return {
     id,
     provider,
@@ -59,7 +109,7 @@ function connToRow(c) {
     email: email ?? null,
     priority: priority ?? null,
     isActive: isActive === false ? 0 : 1,
-    data: stringifyJson(rest),
+    data: stringifyJson(toStore),
     createdAt,
     updatedAt,
   };
@@ -89,11 +139,64 @@ function deriveConnectionName(data, fallbackName) {
   return fallbackName;
 }
 
+// Memory snapshot cache for active connections to eliminate N+1 SQL queries during high-concurrency routing
+let connectionSnapshotCache = null;
+let connectionSnapshotTime = 0;
+const SNAPSHOT_TTL_MS = 5000; // 5-second memory snapshot
+
+export function invalidateConnectionSnapshot() {
+  connectionSnapshotCache = null;
+  connectionSnapshotTime = 0;
+}
+
+export async function getRouteSnapshot() {
+  const now = Date.now();
+  if (connectionSnapshotCache && now - connectionSnapshotTime < SNAPSHOT_TTL_MS) {
+    return connectionSnapshotCache;
+  }
+  const db = await getAdapter();
+  const rows = db.all(`SELECT * FROM providerConnections WHERE isActive = 1`);
+  const list = rows.map(rowToConn);
+  list.sort((a, b) => (a.priority || 999) - (b.priority || 999));
+  
+  // Group by provider for instant O(1) lookups
+  const byProvider = new Map();
+  for (const conn of list) {
+    if (!byProvider.has(conn.provider)) byProvider.set(conn.provider, []);
+    byProvider.get(conn.provider).push(conn);
+  }
+
+  connectionSnapshotCache = { list, byProvider };
+  connectionSnapshotTime = now;
+  return connectionSnapshotCache;
+}
+
 export async function getProviderConnections(filter = {}) {
+  // If provider is specified, use targeted SQL query directly (O(1) index hit instead of scanning thousands)
+  if (filter.provider) {
+    const db = await getAdapter();
+    const where = ["provider = ?"];
+    const params = [filter.provider];
+    if (filter.isActive !== undefined) {
+      where.push("isActive = ?");
+      params.push(filter.isActive ? 1 : 0);
+    }
+    const sql = `SELECT * FROM providerConnections WHERE ${where.join(" AND ")}`;
+    const rows = db.all(sql, params);
+    const list = rows.map(rowToConn);
+    list.sort((a, b) => (a.priority || 999) - (b.priority || 999));
+    return list;
+  }
+
+  // Fast path for all active connections using route snapshot
+  if (filter.isActive === true) {
+    const snapshot = await getRouteSnapshot();
+    return snapshot.list;
+  }
+
   const db = await getAdapter();
   const where = [];
   const params = [];
-  if (filter.provider) { where.push("provider = ?"); params.push(filter.provider); }
   if (filter.isActive !== undefined) { where.push("isActive = ?"); params.push(filter.isActive ? 1 : 0); }
   const sql = `SELECT * FROM providerConnections${where.length ? ` WHERE ${where.join(" AND ")}` : ""}`;
   const rows = db.all(sql, params);
@@ -133,6 +236,7 @@ function reorderInTx(db, providerId) {
 }
 
 export async function createProviderConnection(data) {
+  invalidateConnectionSnapshot();
   const db = await getAdapter();
   const now = new Date().toISOString();
   let result;
@@ -324,6 +428,9 @@ export async function bulkCreateProviderConnections(provider, keys = []) {
 
 // Critical: OAuth refresh token race — atomic merge inside transaction
 export async function updateProviderConnection(id, data) {
+  // Only invalidate route snapshot if structural routing fields change, preventing thrashing on volatile stats/pings
+  const isStructural = data.isActive !== undefined || data.priority !== undefined || data.provider !== undefined || data.apiKey !== undefined || data.accessToken !== undefined || data.refreshToken !== undefined;
+  if (isStructural) invalidateConnectionSnapshot();
   const db = await getAdapter();
   let result;
   db.transaction(() => {
@@ -340,6 +447,7 @@ export async function updateProviderConnection(id, data) {
 }
 
 export async function deleteProviderConnection(id) {
+  invalidateConnectionSnapshot();
   const db = await getAdapter();
   let ok = false;
   db.transaction(() => {

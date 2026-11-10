@@ -232,6 +232,7 @@ const scopedModelPatterns =
 
   // Tailscale state
   const [tsEnabled, setTsEnabled] = useState(false);
+  const [tsPort, setTsPort] = useState(null);
   const [tsReachable, setTsReachable] = useState(false);
   const [tsUrl, setTsUrl] = useState("");
   const [tsLoading, setTsLoading] = useState(false);
@@ -387,10 +388,11 @@ const scopedModelPatterns =
       setTunnelEnabled(tEnabled);
       updateReachable(null, tunnelClientReachableRef, tunnelMissRef, setTunnelReachable, tunnelEverReachableRef, setTunnelEverReachable);
 
-      const tsEn = data.tailscale?.settingsEnabled ?? data.tailscale?.enabled ?? false;
+      const tsEn = data.tailscale?.settingsEnabled ?? data.tailscale?.running ?? data.tailscale?.enabled ?? false;
       const tsUrlVal = data.tailscale?.tunnelUrl || "";
       setTsUrl(tsUrlVal);
       setTsEnabled(tsEn);
+      setTsPort(data.tailscale?.port ?? data.tailscale?.localPort ?? null);
       updateReachable(null, tsClientReachableRef, tsMissRef, setTsReachable, tsEverReachableRef, setTsEverReachable);
     } catch { /* ignore poll errors */ }
   };
@@ -418,10 +420,11 @@ const scopedModelPatterns =
         setTunnelEnabled(tEnabled);
         updateReachable(null, tunnelClientReachableRef, tunnelMissRef, setTunnelReachable, tunnelEverReachableRef, setTunnelEverReachable);
 
-        const tsEn = data.tailscale?.settingsEnabled ?? data.tailscale?.enabled ?? false;
+        const tsEn = data.tailscale?.settingsEnabled ?? data.tailscale?.running ?? data.tailscale?.enabled ?? false;
         const tsUrlVal = data.tailscale?.tunnelUrl || "";
         setTsUrl(tsUrlVal);
         setTsEnabled(tsEn);
+        setTsPort(data.tailscale?.port ?? data.tailscale?.localPort ?? null);
         updateReachable(null, tsClientReachableRef, tsMissRef, setTsReachable, tsEverReachableRef, setTsEverReachable);
       }
     } catch (error) {
@@ -644,6 +647,13 @@ const scopedModelPatterns =
       });
       setTsSudoPassword("");
 
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        setTsStatus({ type: "error", message: errJson.error || `HTTP ${res.status}: Installation request failed` });
+        setTsInstalling(false);
+        return;
+      }
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -733,6 +743,7 @@ const scopedModelPatterns =
 
       if (data.needsLogin && data.authUrl) {
         requestUserAuth(data.authUrl, "Open Login Page");
+        setShowTsModal(true);
         setTsProgress("Login required — click \"Open Login Page\" to continue");
         for (let i = 0; i < 40; i++) {
           await new Promise((r) => setTimeout(r, 3000));
@@ -1488,14 +1499,42 @@ console.log(res.choices[0].message.content);`;
                     )}>
                       {tsEnabled && tsReachable ? "MESH ACTIVE" : tsEnabled ? "CONNECTING" : "OFFLINE"}
                     </span>
+                    {(tsPort || tsEnabled) && (
+                      <span className="px-1.5 py-0.5 rounded-[3px] text-[9.5px] font-mono font-medium border border-border bg-surface text-text-muted">
+                        PORT {tsPort || 3000}
+                      </span>
+                    )}
                   </div>
                   <p className="text-[11px] font-mono text-text-muted truncate mt-0.5">
                     {tsEnabled && tsReachable
                       ? `${tsUrl}/v1`
                       : tsLoading
                         ? (tsProgress || "Connecting Tailscale...")
-                        : "Private tailnet mesh network access"}
+                        : tsEnabled
+                          ? `Funnel https://...ts.net \u2192 127.0.0.1:${tsPort || 3000}`
+                          : "Private tailnet mesh network access"}
                   </p>
+                  {tsAuthUrl && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <a
+                        href={tsAuthUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[4px] bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-all cursor-pointer shadow-xs animate-pulse"
+                      >
+                        <span className="material-symbols-outlined text-[15px]">open_in_new</span>
+                        <span>{tsAuthLabel || "Open Login Page"}</span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => copy(tsAuthUrl, "ts_auth_url")}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-[4px] border border-border bg-surface text-text-muted hover:text-text-main text-[11px] cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[13px]">{copied === "ts_auth_url" ? "check" : "content_copy"}</span>
+                        <span>{copied === "ts_auth_url" ? "Copied" : "Copy URL"}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -2348,7 +2387,7 @@ console.log(res.choices[0].message.content);`;
           {/* Not installed */}
           {tsInstalled === false && !tsInstalling && (
             <div className="flex flex-col gap-3">
-              <p className="text-sm text-text-muted">Install Tailscale to enable Funnel.</p>
+              <p className="text-sm text-text-muted">Tailscale is not installed. Install it to enable Funnel.</p>
               <div className="flex gap-2">
                 <Button onClick={handleInstallTailscale} fullWidth>
                   Install Tailscale
@@ -2372,6 +2411,37 @@ console.log(res.choices[0].message.content);`;
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Auth Required Banner / Action */}
+          {tsAuthUrl && (
+            <div className="flex flex-col gap-3 p-3.5 rounded-[6px] border border-brand-500/40 bg-brand-500/10">
+              <div className="flex items-center gap-2 text-sm font-semibold text-text-main">
+                <span className="material-symbols-outlined text-primary text-[18px]">key</span>
+                Tailscale Authentication Required
+              </div>
+              <p className="text-xs text-text-muted">
+                Klik tombol di bawah ini untuk membuka halaman login Tailscale di tab baru:
+              </p>
+              <div className="flex gap-2">
+                <a
+                  href={tsAuthUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-[5px] bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-all text-center shadow-xs"
+                >
+                  <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                  <span>{tsAuthLabel || "Open Login Page"}</span>
+                </a>
+                <Button
+                  onClick={() => copy(tsAuthUrl, "modal_auth_url")}
+                  variant="secondary"
+                  size="sm"
+                >
+                  {copied === "modal_auth_url" ? "Copied" : "Copy"}
+                </Button>
+              </div>
             </div>
           )}
 

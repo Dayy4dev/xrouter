@@ -39,8 +39,42 @@ function rowToTeam(row) {
   };
 }
 
+let schemaChecked = false;
+async function ensureTeamsSchema(db) {
+  if (schemaChecked) return;
+  try {
+    const cols = await db.all("PRAGMA table_info(teams)");
+    if (!cols || cols.length === 0) return;
+    const colNames = new Set(cols.map((c) => c.name));
+
+    // SQLite forbids "ADD COLUMN ... UNIQUE". Add plain column then create unique index.
+    if (!colNames.has("apiKey")) {
+      try {
+        await db.run("ALTER TABLE teams ADD COLUMN apiKey TEXT");
+        await db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_team_apikey ON teams(apiKey)");
+      } catch (err) {
+        console.warn("[teamsRepo] failed to add apiKey column:", err?.message);
+      }
+    }
+    if (!colNames.has("dailySpendLimitUsd")) {
+      try {
+        await db.run("ALTER TABLE teams ADD COLUMN dailySpendLimitUsd REAL DEFAULT 0");
+      } catch {}
+    }
+    if (!colNames.has("monthlySpendLimitUsd")) {
+      try {
+        await db.run("ALTER TABLE teams ADD COLUMN monthlySpendLimitUsd REAL DEFAULT 0");
+      } catch {}
+    }
+    schemaChecked = true;
+  } catch (e) {
+    console.warn("[teamsRepo] ensureTeamsSchema error:", e?.message);
+  }
+}
+
 export async function getTeams() {
   const db = await getAdapter();
+  await ensureTeamsSchema(db);
   const rows = await db.all("SELECT * FROM teams ORDER BY createdAt DESC");
   return (rows || []).map(rowToTeam);
 }
@@ -48,6 +82,7 @@ export async function getTeams() {
 export async function getTeamById(id) {
   if (!id) return null;
   const db = await getAdapter();
+  await ensureTeamsSchema(db);
   const row = await db.get("SELECT * FROM teams WHERE id = ?", [id]);
   return rowToTeam(row);
 }
@@ -65,6 +100,7 @@ export async function createTeam({
   monthlySpendLimitUsd = 0,
 }) {
   const db = await getAdapter();
+  await ensureTeamsSchema(db);
   const id = `team_${uuidv4().replace(/-/g, "").slice(0, 16)}`;
   const now = new Date().toISOString();
 
@@ -106,6 +142,7 @@ export async function createTeam({
 
 export async function updateTeam(id, updates = {}) {
   const db = await getAdapter();
+  await ensureTeamsSchema(db);
   const existing = await getTeamById(id);
   if (!existing) return null;
 

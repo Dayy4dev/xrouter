@@ -156,6 +156,9 @@ export class DefaultExecutor extends BaseExecutor {
       return `${this.config.baseUrl}${this.config.urlSuffix}`;
     }
     const url = this.config.baseUrl;
+    if (this.provider === "ovh" && !url.endsWith("/chat/completions")) {
+      return `${url.replace(/\/$/, "")}/chat/completions`;
+    }
     if (url?.includes("{accountId}")) {
       const accountId = credentials?.providerSpecificData?.accountId;
       if (!accountId) throw new Error(`${this.provider} requires accountId in providerSpecificData`);
@@ -179,6 +182,13 @@ export class DefaultExecutor extends BaseExecutor {
   }
 
   buildHeaders(credentials, stream = true, url, model, body = null) {
+    if (this.provider === "ovh" || this.config?.noAuth || this.config?.authType === "none") {
+      const headers = { "Content-Type": "application/json", ...this.config.headers };
+      delete headers["Authorization"];
+      delete headers["authorization"];
+      if (stream) headers["Accept"] = "text/event-stream";
+      return headers;
+    }
     const rt = credentials?.runtimeTransport;
     const headers = { "Content-Type": "application/json", ...(rt ? rt.headers : this.config.headers) };
     const desc = rt?.auth || AUTH_DESCRIPTORS[this.provider] || this.resolveAuthDescriptor();

@@ -2,10 +2,11 @@ import { getProviderConnections, validateApiKey, updateProviderConnection, getSe
 import { resolveConnectionProxyConfig, pickProxyPoolId, quarantineProxy, isProxyQuarantined } from "@/lib/network/connectionProxy";
 import { formatRetryAfter, checkFallbackError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
-import { resolveProviderId, FREE_PROVIDERS, AI_PROVIDERS } from "@/shared/constants/providers.js";
+import { resolveProviderId, FREE_PROVIDERS, FREE_TIER_PROVIDERS, AI_PROVIDERS } from "@/shared/constants/providers.js";
 import { getAntigravityQuotaCache, getAntigravityModelQuota } from "./antigravityQuota.js";
 import { getAffinityConnectionId, setAffinityConnection, touchAffinity, clearAffinity } from "./conversationAffinity.js";
 import { tripCircuitBreaker, isCircuitBreakerOpen, recordCircuitSuccess } from "./circuitBreaker.js";
+import { cooldownRegistry } from "./cooldownRegistry.js";
 
 export { apiKeyGateFailure, shouldLogAuthFailure } from "./keyGate.js";
 import * as log from "../utils/logger.js";
@@ -53,7 +54,9 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     const isNoAuth =
       providerId === "opencode" ||
       providerId === "ovh" ||
+      providerId === "kilo-gateway" ||
       Boolean(FREE_PROVIDERS[providerId]?.noAuth) ||
+      Boolean(FREE_TIER_PROVIDERS[providerId]?.noAuth) ||
       Boolean(AI_PROVIDERS[providerId]?.noAuth);
 
     if (isNoAuth) {
@@ -171,11 +174,15 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     const isAntigravity = providerId === "antigravity";
     const antigravityQuotaCache = isAntigravity && model ? getAntigravityQuotaCache() : null;
 
-    // Filter out model-locked, excluded, circuit-broken, and Antigravity quota-exhausted connections.
+    // Filter out model-locked, excluded, circuit-broken, cooldown-quarantined, and Antigravity quota-exhausted connections.
     const availableConnections = connections.filter(c => {
       if (excludeSet.has(c.id)) return false;
       if (isModelLockActive(c, model) && !isTestProbe) return false;
       if (isCircuitBreakerOpen(c.id) && !isTestProbe) return false;
+      if (!isTestProbe) {
+        if (cooldownRegistry.isCooling(c.id)) return false;
+        if (model && cooldownRegistry.isCooling(`${c.id}|${model}`)) return false;
+      }
       const enabled = c.providerSpecificData?.enabledModels;
       if (providerId === "codex" && Array.isArray(enabled) && enabled.length && requestedModel && !enabled.includes(requestedModel)) return false;
       // Antigravity: skip if live quota exhausted for this model
@@ -491,8 +498,16 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   );
 
   // Trip circuit breaker on actual connection/server-level errors (5xx/network outages or account-wide 429 exhaustion)
-  if (shouldFallback && connectionId && connectionId !== "noauth" && !isPerModelRateLimit && !isModelSpecificClientError && !isClientError) {
-    tripCircuitBreaker(connectionId, { status, error: reason, provider, model });
+  if (shouldFallback && connectionId && connectionId !== "noauth") {
+    if (isPerModelRateLimit) {
+      // Use VoidLLM-style lightweight Cooldown Registry for 429 rate limit backoff (per model + per connection)
+      const cdDuration = cooldownMs || (githubResetAtMs ? Math.max(1000, githubResetAtMs - Date.now()) : 30000);
+      cooldownRegistry.mark(connectionId, cdDuration, reason);
+      if (model) cooldownRegistry.mark(`${connectionId}|${model}`, cdDuration, reason);
+      log.info("COOLDOWN", `⏳ Connection ${connName} [${model || provider}] placed in cooldown for ${Math.round(cdDuration / 1000)}s`);
+    } else if (!isModelSpecificClientError && !isClientError) {
+      tripCircuitBreaker(connectionId, { status, error: reason, provider, model });
+    }
   }
 
   const isAccountWideError = !model || status === 401 || status === 403 || status >= 500;
